@@ -67,6 +67,7 @@ THIRD_PARTY_APPS = [
 ]
 
 LOCAL_APPS = [
+    'users'
 
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -75,6 +76,11 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#migration-modules
 MIGRATION_MODULES = {"sites": "AfanChatServer.contrib.sites.migrations"}
+
+# AUTHENTICATION
+# ------------------------------------------------------------------------------
+# https://docs.djangoproject.com/en/dev/ref/settings/#auth-user-model
+AUTH_USER_MODEL = 'users.CustomUser'
 
 # Password validation
 # ------------------------------------------------------------------------------
@@ -112,7 +118,6 @@ MIDDLEWARE = [
 SECRET_KEY = env.str("DJANGO_SECRET_KEY", default='django-insecure-^ga@7%5lnh@)_a*v!0&g)tbrf-2r2p*t%hei$bf%drp*)wj8f_')
 
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["*"])
-
 
 # TEMPLATES
 # ------------------------------------------------------------------------------
