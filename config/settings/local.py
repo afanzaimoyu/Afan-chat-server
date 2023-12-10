@@ -11,7 +11,38 @@ SECRET_KEY = env(
     default="shqfr08LEXFYzi3zGQIGTTZZDoD1jGQOcLN97yd4RHXz3ZsRk5VtcZeuVlYk0EIr",
 )
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
-ALLOWED_HOSTS = ["localhost", "0.0.0.0", "127.0.0.1"]
+ALLOWED_HOSTS = ["*"]
+
+# CHANNEL
+# ------------------------------------------------------------------------------
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
+}
+# CHANNEL_LAYERS = {
+#     "default": {
+#         "BACKEND": "channels_redis.core.RedisChannelLayer",
+#         "CONFIG": {
+#             "hosts": [("127.0.0.1", 6379)],
+#         },
+#     },
+# }
+# CACHES
+# ------------------------------------------------------------------------------
+# https://docs.djangoproject.com/en/dev/ref/settings/#caches
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379',
+        'OPTIONS': {
+            'db': '1',
+            'parser_class': 'redis.connection._HiredisParser',
+            'pool_class': 'redis.ConnectionPool',
+        }
+    }
+}
 
 # # django-debug-toolbar
 # # ------------------------------------------------------------------------------

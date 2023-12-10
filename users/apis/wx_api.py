@@ -3,6 +3,8 @@ import json
 from urllib.parse import quote
 from typing import Optional, Dict, Any, Union
 
+from config.settings.base import env
+from django.core.cache import cache
 import requests
 
 
@@ -19,7 +21,8 @@ class WeChatOAuth:
     OAUTH_BASE_URL = "https://open.weixin.qq.com/connect/"
     QRCODE_SHOW_URL = "https://mp.weixin.qq.com/cgi-bin/showqrcode"
 
-    def __init__(self, app_id: str, secret: str, redirect_uri: str, scene_id: int, scope: str = "snsapi_base",
+    def __init__(self, app_id: str = None, secret: str = None, redirect_uri: str = None,
+                 scope: str = "snsapi_base",
                  state: str = "", expire_seconds: Optional[int] = 60):
         """
         初始化 WeChatOAuth 实例
@@ -30,16 +33,14 @@ class WeChatOAuth:
             redirect_uri (str): OAuth2 redirect URI
             scope (str, optional): 微信公众号 OAuth2 scope，默认为 'snsapi_base'
             state (str, optional): 微信公众号 OAuth2 state
-            scene_id (int): 场景值ID，32位非0整型
             expire_seconds (Optional[int]): 二维码有效时间，以秒为单位。最大不超过2592000（即30天），默认为60秒。
         """
-        self.app_id = app_id
-        self.secret = secret
-        self.redirect_uri = redirect_uri
-        self.scope = scope
-        self.state = state
-        self.scene_id = scene_id
-        self.expire_seconds = expire_seconds
+        self.app_id = env.str("APP_ID", app_id)
+        self.secret = env.str("secret", secret)
+        self.redirect_uri = env.str("redirect_uri", redirect_uri)
+        self.scope = env.str("scope", scope)
+        self.state = env.str("state", state)
+        self.expire_seconds = env.int("expire_seconds", expire_seconds)
         self._http = requests.Session()
 
     def _request(self, method: str, url_or_endpoint: str, **kwargs: Any) -> Union[Dict[str, Any], bytes]:
@@ -84,7 +85,7 @@ class WeChatOAuth:
         content_type = res.headers.get('Content-Type', '')
 
         match content_type:
-            case 'application/json':
+            case x if 'application/json' in x:
                 result = json.loads(res.content.decode('utf-8', "ignore"), strict=False)
             case _:
                 return res.content
@@ -136,6 +137,28 @@ class WeChatOAuth:
 
         return "".join(url_parts)
 
+    @property
+    def fetch_normal_access_token(self):
+        """
+        获取access_token，保存到缓存
+        Returns:
+            access_token
+
+        """
+        res = self._get(
+            "cgi-bin/token",
+            params={
+                "grant_type": "client_credential",
+                "appid": self.app_id,
+                "secret": self.secret,
+            },
+        )
+        access_token = res.get('access_token')
+        expires_in = int(res.get("expires_in"))
+
+        cache.set("wx_access_token", access_token, expires_in)
+        return access_token
+
     def fetch_access_token(self, code: str) -> dict:
         """
         获取 access_token
@@ -162,10 +185,6 @@ class WeChatOAuth:
                 "grant_type": "authorization_code",
             },
         )
-        self.access_token = res["access_token"]
-        self.open_id = res["openid"]
-        self.refresh_token = res["refresh_token"]
-        self.expires_in = res["expires_in"]
 
         return res
 
@@ -194,10 +213,6 @@ class WeChatOAuth:
                 "refresh_token": refresh_token,
             },
         )
-        self.access_token = res["access_token"]
-        self.open_id = res["openid"]
-        self.refresh_token = res["refresh_token"]
-        self.expires_in = res["expires_in"]
 
         return res
 
@@ -226,17 +241,21 @@ class WeChatOAuth:
         Raises:
             WeChatOAuthException: 如果请求过程中发生异常或获取到的结果包含错误信息
         """
-        openid = openid or self.open_id
-        access_token = access_token or self.access_token
+        openid = openid
+        access_token = access_token
         return self._get(
             "sns/userinfo",
             params={"access_token": access_token, "openid": openid, "lang": lang},
         )
 
-    @property
-    def create_temporary_qrcode(self) -> dict:
+    def create_temporary_qrcode(self, access_token: str, scene_id: int) -> dict:
         """
         创建临时二维码
+
+        Args:
+            access_token(str): 普通 access_token
+            scene_id (int): 场景值ID，32位非0整型
+
 
         Returns:
             dict: 包含二维码信息的字典，具体字段如下：
@@ -251,12 +270,12 @@ class WeChatOAuth:
         data = {
             "expire_seconds": self.expire_seconds,
             "action_name": "QR_SCENE",
-            "action_info": {"scene": {"scene_id": self.scene_id}},
+            "action_info": {"scene": {"scene_id": scene_id}},
         }
 
         res = self._post(
             "cgi-bin/qrcode/create",
-            params={"access_token": self.access_token},
+            params={"access_token": access_token},
             json=data
         )
         return res
@@ -281,42 +300,41 @@ class WeChatOAuth:
 
         return res
 
-
-if __name__ == '__main__':
-    # 使用示例
-    app_id = "your_app_id"
-    secret = "your_secret"
-    redirect_uri = "your_redirect_uri"
-    scope = "snsapi_userinfo"
-    state = "your_state"
-    scene_id = 123
-    expire_seconds = 60
-
-    wechat_oauth = WeChatOAuth(app_id, secret, redirect_uri, scene_id, scope, state, expire_seconds)
-
-    # 生成授权地址
-    authorize_url = wechat_oauth.authorize_url
-    print("Authorize URL:", authorize_url)
-
-    # 获取用户授权后的 code，用于换取 access_token
-    user_code = input("Enter the user code: ")
-
-    # 通过 code 获取 access_token
-    access_token_info = wechat_oauth.fetch_access_token(user_code)
-    print("Access Token Info:", access_token_info)
-
-    # 刷新 access_token
-    refresh_token_info = wechat_oauth.refresh_access_token(access_token_info["refresh_token"])
-    print("Refresh Token Info:", refresh_token_info)
-
-    # 获取用户信息
-    user_info = wechat_oauth.get_user_info()
-    print("User Info:", user_info)
-
-    # 创建临时二维码
-    qr_ticket = wechat_oauth.create_temporary_qrcode.get('ticket')
-    print("QR ticket:", qr_ticket)
-
-    # 生成二维码
-    qr_code = wechat_oauth.get_qrcode_image(qr_ticket)
-    print("QR CODE:", qr_code)
+# if __name__ == '__main__':
+# # 使用示例
+# app_id = "your_app_id"
+# secret = "your_secret"
+# redirect_uri = "your_redirect_uri"
+# scope = "snsapi_userinfo"
+# state = "your_state"
+# scene_id = 123
+# expire_seconds = 60
+#
+# wechat_oauth = WeChatOAuth(app_id, secret, redirect_uri, scene_id, scope, state, expire_seconds)
+#
+# # 生成授权地址
+# authorize_url = wechat_oauth.authorize_url
+# print("Authorize URL:", authorize_url)
+#
+# # 获取用户授权后的 code，用于换取 access_token
+# user_code = input("Enter the user code: ")
+#
+# # 通过 code 获取 access_token
+# access_token_info = wechat_oauth.fetch_access_token(user_code)
+# print("Access Token Info:", access_token_info)
+#
+# # 刷新 access_token
+# refresh_token_info = wechat_oauth.refresh_access_token(access_token_info["refresh_token"])
+# print("Refresh Token Info:", refresh_token_info)
+#
+# # 获取用户信息
+# user_info = wechat_oauth.get_user_info()
+# print("User Info:", user_info)
+#
+# # 创建临时二维码
+# qr_ticket = wechat_oauth.create_temporary_qrcode.get('ticket')
+# print("QR ticket:", qr_ticket)
+#
+# # 生成二维码
+# qr_code = wechat_oauth.get_qrcode_image(qr_ticket)
+# print("QR CODE:", qr_code)

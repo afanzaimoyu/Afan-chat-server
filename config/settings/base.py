@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 import environ
+from django.conf import settings
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
@@ -12,8 +13,10 @@ env = environ.Env()
 READ_DOT_ENV_FILE = env.bool("DJANGO_READ_DOT_ENV_FILE", default=True)
 if READ_DOT_ENV_FILE:
     # OS environment variables take precedence over variables from .env
-    env.read_env(str(BASE_DIR / ".env"))
-
+    if 'local' in settings.SETTINGS_MODULE:
+        env.read_env(str(BASE_DIR / ".envs"/'.local'))
+    else:
+        env.read_env(str(BASE_DIR / ".envs"/'.production'))
 # 常规配置
 # ------------------------------------------------------------------------------
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -48,6 +51,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ------------------------------------------------------------------------------
 ROOT_URLCONF = 'config.urls'
 WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'
+
 
 # APPS
 # ------------------------------------------------------------------------------
@@ -57,17 +62,21 @@ DJANGO_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+
+    "daphne",
+
     'django.contrib.staticfiles',
 ]
 THIRD_PARTY_APPS = [
-    # 'ninja_extra',
+    "channels",
+    'ninja_extra',
     # 'django_rest_passwordreset',
     # 'corsheaders'
     # # 'ninja_jwt'
 ]
 
 LOCAL_APPS = [
-    'users'
+    'users',
 
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
