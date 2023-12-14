@@ -11,8 +11,14 @@ from users.user_tools.tools import generate_login_code
 class ChatConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
         print("WebSocket 连接")
+        # 连接建立时，将连接加入到 "login_group"
+        await self.channel_layer.group_add("chat_group", self.channel_name)
 
         await self.accept()
+
+    async def disconnect(self, code):
+        print("WebSocket 断开")
+        await self.channel_layer.group_discard("chat_group", self.channel_name)
 
     async def receive_json(self, content, **kwargs):
         match content.get("type"):
@@ -25,22 +31,29 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             case _:
                 pass
 
-    async def disconnect(self, code):
-        print("WebSocket 断开")
-        cache.delete(self.channel_name)
+    async def type_message(self,event):
+        print("event,,,,,,,,,,,,,,,,,,,,,,,,,,,,,",event)
+        await self.send_json(
+            event["message"]
+        )
 
     async def handle_login_request(self):
         # 生成唯一的登录码并与通道关联
         login_code = generate_login_code(self.scope['client'][0])
         expire_seconds = env.int("expire_seconds")
-        cache.set(self.channel_name,{"uid": None, "code": login_code},expire_seconds)
+        cache.set(login_code,self.channel_name,expire_seconds)
 
         # 请求微信 API 获取二维码
         wx_mp_qr_code_ticket = request_qr_code(login_code)
         print(cache.get(self.channel_name))
 
         # 将生成的二维码 URL 发送回前端
-        await self.send_json({"data": {"message": "请求登录二维码", "qr_code_url": wx_mp_qr_code_ticket}})
+        await self.send_json({
+            "type":1,
+            "data": {
+                "qr_code_url": wx_mp_qr_code_ticket
+            }
+        })
 
 
 def request_qr_code(login_code):

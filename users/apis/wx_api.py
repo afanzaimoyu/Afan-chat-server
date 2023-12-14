@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+from json import JSONDecodeError
 from urllib.parse import quote
 from typing import Optional, Dict, Any, Union
 
@@ -83,12 +84,15 @@ class WeChatOAuth:
             }
 
         content_type = res.headers.get('Content-Type', '')
+        print(content_type)
 
         match content_type:
-            case x if 'application/json' in x:
+            case x if 'application/json' or 'text' in x:
                 result = json.loads(res.content.decode('utf-8', "ignore"), strict=False)
             case _:
                 return res.content
+        print(result)
+
 
         if "errcode" in result and result["errcode"] != 0:
             errcode = result["errcode"]
@@ -248,13 +252,13 @@ class WeChatOAuth:
             params={"access_token": access_token, "openid": openid, "lang": lang},
         )
 
-    def create_temporary_qrcode(self, access_token: str, scene_id: int) -> dict:
+    def create_temporary_qrcode(self, access_token: str, scene_str: str) -> dict:
         """
         创建临时二维码
 
         Args:
             access_token(str): 普通 access_token
-            scene_id (int): 场景值ID，32位非0整型
+            scene_str (str): 场景值ID（字符串形式的ID），字符串类型，长度限制为1到64
 
 
         Returns:
@@ -269,8 +273,8 @@ class WeChatOAuth:
 
         data = {
             "expire_seconds": self.expire_seconds,
-            "action_name": "QR_SCENE",
-            "action_info": {"scene": {"scene_id": scene_id}},
+            "action_name": "QR_STR_SCENE",
+            "action_info": {"scene": {"scene_str": scene_str}},
         }
 
         res = self._post(
@@ -298,6 +302,20 @@ class WeChatOAuth:
             params={"ticket": ticket}
         )
 
+        return res
+
+    def fetch_template_text(self, open_id:str,access_token: str,auth_url:str):
+
+        data = {
+            "touser": open_id,
+            "template_id": "IT2JavpghUvB59pMBnHzxiv8QkaqsL1fsXZ5Q_vmNps",
+            "url":auth_url,
+        }
+        res = self._post(
+            "cgi-bin/message/template/send",
+            params={"access_token": access_token},
+            json=data
+        )
         return res
 
 # if __name__ == '__main__':
