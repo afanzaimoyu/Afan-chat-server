@@ -1,4 +1,5 @@
 import sys
+from datetime import timedelta
 from pathlib import Path
 import environ
 from django.conf import settings
@@ -72,7 +73,7 @@ THIRD_PARTY_APPS = [
     'ninja_extra',
     # 'django_rest_passwordreset',
     # 'corsheaders'
-    # # 'ninja_jwt'
+    'ninja_jwt'
 ]
 
 LOCAL_APPS = [
@@ -151,3 +152,10 @@ TEMPLATES = [
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 STATIC_URL = 'static/'
+
+# NINJA_JWT
+# ------------------------------------------------------------------------------
+NINJA_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+}

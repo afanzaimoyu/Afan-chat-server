@@ -1,10 +1,12 @@
 import hashlib
-import json
-import random
 import secrets
-import string
 import time
 import uuid
+from typing import cast, Dict
+
+from django.contrib.auth.base_user import AbstractBaseUser
+from django.contrib.auth.models import AbstractUser
+from ninja_jwt.tokens import RefreshToken
 
 
 def generate_login_code(ip):
@@ -25,3 +27,16 @@ def extract_login_code_from_event_key(event_key: str) -> str:
     # 实现提取登录码的逻辑，根据实际情况修改
     return event_key.split("_")[1]
 
+
+def get_token(user: AbstractBaseUser) -> Dict:
+    values = {}
+    refresh = RefreshToken.for_user(user)
+    refresh = cast(RefreshToken, refresh)
+    values["refresh"] = str(refresh)
+    values["access"] = str(refresh.access_token)
+    return values
+def refresh_token(refresh:str)->Dict:
+    refresh = RefreshToken(refresh)
+
+    access = {"access": str(refresh.access_token)}
+    return access
