@@ -506,6 +506,40 @@ doc = ["markdown-include", "mdx-include (>=1.4.1,<2.0.0)", "mkdocs (>=1.1.2,<2.0
 test = ["black (==23.10.1)", "click (==8.1.7)", "cryptography", "django-stubs", "pytest", "pytest-asyncio", "pytest-cov", "pytest-django", "python-jose (==3.3.0)", "ruff (==0.1.4)"]
 
 [[package]]
+name = "dnspython"
+version = "2.4.2"
+description = "DNS toolkit"
+optional = false
+python-versions = ">=3.8,<4.0"
+files = [
+    {file = "dnspython-2.4.2-py3-none-any.whl", hash = "sha256:57c6fbaaeaaf39c891292012060beb141791735dbb4004798328fc2c467402d8"},
+    {file = "dnspython-2.4.2.tar.gz", hash = "sha256:8dcfae8c7460a2f84b4072e26f1c9f4101ca20c071649cb7c34e8b6a93d58984"},
+]
+
+[package.extras]
+dnssec = ["cryptography (>=2.6,<42.0)"]
+doh = ["h2 (>=4.1.0)", "httpcore (>=0.17.3)", "httpx (>=0.24.1)"]
+doq = ["aioquic (>=0.9.20)"]
+idna = ["idna (>=2.1,<4.0)"]
+trio = ["trio (>=0.14,<0.23)"]
+wmi = ["wmi (>=1.5.1,<2.0.0)"]
+
+[[package]]
+name = "email-validator"
+version = "2.1.0.post1"
+description = "A robust email address syntax and deliverability validation library."
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "email_validator-2.1.0.post1-py3-none-any.whl", hash = "sha256:c973053efbeddfef924dc0bd93f6e77a1ea7ee0fce935aea7103c7a3d6d2d637"},
+    {file = "email_validator-2.1.0.post1.tar.gz", hash = "sha256:a4b0bd1cf55f073b924258d19321b1f3aa74b4b5a71a42c305575dba920e1a44"},
+]
+
+[package.dependencies]
+dnspython = ">=2.0.0"
+idna = ">=2.0.0"
+
+[[package]]
 name = "hiredis"
 version = "2.2.3"
 description = "Python wrapper for hiredis"
@@ -741,6 +775,28 @@ files = [
 ]
 
 [[package]]
+name = "ninja-schema"
+version = "0.13.6"
+description = "Django Schema - Builds Pydantic Schemas from Django Models with default field type validations"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "ninja_schema-0.13.6-py3-none-any.whl", hash = "sha256:3f7e2d40c1ff124778d56630cdd5c9243e9430c924c50e7fb353ea54494242f7"},
+    {file = "ninja_schema-0.13.6.tar.gz", hash = "sha256:3b647a8eaf7071687c9d7d0e97c8807a877d950414940f93c495711fb8508f6c"},
+]
+
+[package.dependencies]
+Django = ">=2.0"
+pydantic = [
+    {version = ">=1.7.4,<1.8 || >1.8,<1.8.1 || >1.8.1,<2.0.0 || >2.0.0,<2.0.1 || >2.0.1,<2.1.0 || >2.1.0,<3.0.0"},
+    {version = "*", extras = ["email"]},
+]
+
+[package.extras]
+dev = ["pre-commit"]
+test = ["django-stubs", "mypy (==1.7.1)", "pytest", "pytest-asyncio", "pytest-cov", "pytest-django", "ruff (==0.1.7)"]
+
+[[package]]
 name = "pyasn1"
 version = "0.5.1"
 description = "Pure-Python implementation of ASN.1 types and DER/BER/CER codecs (X.208)"
@@ -789,6 +845,7 @@ files = [
 
 [package.dependencies]
 annotated-types = ">=0.4.0"
+email-validator = {version = ">=2.0.0", optional = true, markers = "extra == \"email\""}
 pydantic-core = "2.14.5"
 typing-extensions = ">=4.6.1"
 
@@ -1244,4 +1301,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "6298361f5d5a075da199052081db0889eadf2794e8b6f98294f66d759dffe8fb"
+content-hash = "142cfbfdf52e09c1b80ada288130c5fa28b1d2bb07c4c2d7fb80447ce78e3997"

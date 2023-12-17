@@ -19,7 +19,9 @@ from ninja_jwt.tokens import  AccessToken
 from config.settings.base import env
 from users.apis.wx_api import WeChatOAuth
 from users.models import CustomUser
-from users.user_tools.tools import extract_login_code_from_event_key, get_token
+from users.user_tools.afan_ninja import AfanNinjaAPI
+from users.user_tools.tools import extract_login_code_from_event_key, get_token, refresh_token
+
 
 class MyParser(Parser):
     def parse_body(self, request: HttpRequest) -> DictStrAny:
@@ -31,7 +33,7 @@ class MyParser(Parser):
             return cast(DictStrAny, json.loads(request.body))
 
 
-api = NinjaExtraAPI(parser=MyParser())
+api = AfanNinjaAPI(parser=MyParser(),urls_namespace="微信登录API")
 
 
 class WxData(Schema):
@@ -169,9 +171,9 @@ class WeChatLoginApi:
 
     @http_get("/test", response=A)
     def test(self):
-        t = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxMDAyNjQ5Njk2LCJpYXQiOjEwMDI2NDkzOTYsImp0aSI6IjM3ZGQ4ZmNhZTllYTQ2MDJhZWRkNmZmN2I3NmFmZTZjIiwidXNlcl9pZCI6MX0.EC97x3CBZiStFbcM0-87_c6-wNTE4UQJIaE7x8Z_qyY"
-        AccessToken(t)
-        return {"access": t}
+        t = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTcwMjgwMDIzMCwiaWF0IjoxNzAyNzEzODMwLCJqdGkiOiI4MzNlNWU3NDQ4NWM0NTcyYTk3ZDIyY2NmNzQxZGYyNSIsInVzZXJfaWQiOjF9.BXzmfimKZJZRVQvmgu2tQRz1ZP91uAvzHJMbJvMh0iE"
+        a =  refresh_token(t)
+        return a
         # decoded_payload = AccessToken(at).payload.get('user_id')
         #
         # # 处理负载，获取 access token 中的信息

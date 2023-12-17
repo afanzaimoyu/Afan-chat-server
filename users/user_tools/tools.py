@@ -40,3 +40,5 @@ def refresh_token(refresh:str)->Dict:
 
     access = {"access": str(refresh.access_token)}
     return access
+
+
