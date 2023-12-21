@@ -36,9 +36,3 @@ def get_token(user: AbstractBaseUser) -> Dict:
     values["access"] = str(refresh.access_token)
     return values
 
-
-def refresh_token(refresh: str) -> Dict:
-    refresh = RefreshToken(refresh)
-
-    access = {"access": str(refresh.access_token)}
-    return access

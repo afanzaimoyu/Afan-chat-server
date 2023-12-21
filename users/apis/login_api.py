@@ -1,26 +1,67 @@
 import hashlib
 import json
-from typing import cast
-
+from typing import cast, Type, Optional, Any, Dict
 import xmltodict
+
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+
+from django.contrib.auth.models import update_last_login
 from django.core.cache import cache
 from django.http import HttpResponse, HttpRequest
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
+
 from ninja import Schema
 from ninja.parser import Parser
+from ninja.schema import DjangoGetter
 from ninja.types import DictStrAny
+
 from ninja_extra import NinjaExtraAPI, api_controller, http_get, http_post
 
-from ninja_jwt.tokens import AccessToken
+from ninja_jwt import exceptions
+from ninja_jwt.tokens import AccessToken, RefreshToken
+from ninja_jwt.utils import token_error
+
+from pydantic import model_validator
 
 from config.settings.base import env
+
 from users.apis.wx_api import WeChatOAuth
 from users.models import CustomUser
 from users.user_tools.afan_ninja import AfanNinjaAPI
-from users.user_tools.tools import extract_login_code_from_event_key, get_token, refresh_token
+from users.user_tools.tools import extract_login_code_from_event_key, get_token
+
+
+class TokenRefreshInputSchema(Schema):
+    refresh: str
+
+    @model_validator(mode="before")
+    def validate_schema(cls, values: DjangoGetter) -> dict:
+        values = values._obj
+
+        if isinstance(values, dict):
+            if not values.get("refresh"):
+                raise exceptions.ValidationError({"refresh": "token is required"})
+        return values
+
+
+class TokenRefreshOutputSchema(Schema):
+    access: str
+
+    @model_validator(mode="before")
+    @token_error
+    def validate_schema(cls, values: DjangoGetter) -> Any:
+        values = values._obj
+        if isinstance(values, dict):
+            if not values.get("refresh"):
+                raise exceptions.ValidationError(
+                    {"refresh": "refresh token is required"}
+                )
+            refresh = RefreshToken(values["refresh"])
+            data = {"access": str(refresh.access_token)}
+            values.update(data)
+        return values
 
 
 class MyParser(Parser):
@@ -38,10 +79,6 @@ api = AfanNinjaAPI(parser=MyParser(), urls_namespace="微信登录API")
 
 class WxData(Schema):
     xml: dict
-
-
-class A(Schema):
-    access: str
 
 
 @api_controller('/wx', tags=["Wechat Login"], permissions=[])
@@ -111,6 +148,7 @@ class WeChatLoginApi:
                 # 用户已关注
                 user = get_object_or_404(CustomUser, open_id=openid)
                 user_token = get_token(user)
+                update_last_login(None, user)
 
                 channel_name = cache.get(event_key)
                 message = {
@@ -129,10 +167,11 @@ class WeChatLoginApi:
                 async_to_sync(channel_layer.send)(channel_name, message)
 
             elif dic.get("Event") == "unsubscribe":
-                # TODO: 取消关注
+
+                user = get_object_or_404(CustomUser, open_id=openid)
+                user.backpacks.clear()
+                user.delete()
                 print("取消关注")
-                # user = get_object_or_404(CustomUser, open_id=openid)
-                # user.delete()
 
     @http_get("/auth")
     def my_auth(self, code: str):
@@ -170,20 +209,13 @@ class WeChatLoginApi:
         # 连接管理
         cache.set(channel_name, user.id)
 
-    @http_get("/test", response=A)
-    def test(self):
-        t = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTcwMjgwMDIzMCwiaWF0IjoxNzAyNzEzODMwLCJqdGkiOiI4MzNlNWU3NDQ4NWM0NTcyYTk3ZDIyY2NmNzQxZGYyNSIsInVzZXJfaWQiOjF9.BXzmfimKZJZRVQvmgu2tQRz1ZP91uAvzHJMbJvMh0iE"
-        a = refresh_token(t)
-        return a
-        # decoded_payload = AccessToken(at).payload.get('user_id')
-        #
-        # # 处理负载，获取 access token 中的信息
-        # print(decoded_payload)
-        # try:
-        #     a = refresh_token("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTEwMjcyMTIwNiwiaWF0IjoxMTAyNjM0ODAxLCJqdGkiOiI4M2MyMTczMjgyZDg0YmRlOGRmZmY2NmVhYjIzZDBkZCIsInVzZXJfaWQiOjR9.B7jQf5Yh7Q0tgJ1VAgpppJe4z_xniL_7KPxN4c2B7YY")
-        #     print(a)
-        # except ninja_jwt.exceptions.TokenError as e:
-        #     return HttpResponseBadRequest(str(e))
+    @http_post(
+        "/refresh",
+        response=TokenRefreshOutputSchema,
+        url_name="token_refresh",
+    )
+    def refresh(self, refresh_token: TokenRefreshInputSchema):
+        return refresh_token.dict()
 
 
 api.register_controllers(
