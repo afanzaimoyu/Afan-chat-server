@@ -1,4 +1,5 @@
-from django.db import models
+from django.db import models, transaction
+from django.db.utils import IntegrityError
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db.models import Q
 
@@ -33,7 +34,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     backpacks = models.ManyToManyField("ItemConfig", through="UserBackpack", related_name="back",
                                        verbose_name="用户与物品的关联")
 
-    last_login = models.DateTimeField(blank=True,null=True, verbose_name='最后上下线时间')
+    last_login = models.DateTimeField(blank=True, null=True, verbose_name='最后上下线时间')
     ip_info = models.JSONField(null=True, verbose_name='ip信息')
     item_id = models.BigIntegerField(null=True, verbose_name='佩戴的徽章id')
     status = models.IntegerField(default=0, verbose_name='使用状态', choices=[(0, '正常'), (1, '拉黑')])
@@ -55,6 +56,11 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return self.get_rename_card().order_by("create_time").first()
 
 
+    @property
+    def get_user_badges(self):
+        return self.userbackpack_set.filter(item__item_type=2).values_list('item__id', flat=True)
+
+
 class ItemConfig(models.Model):
     id = models.BigAutoField(primary_key=True)
     item_type = models.IntegerField(verbose_name='物品类型', choices=[(1, '改名卡'), (2, '徽章')])
@@ -70,12 +76,15 @@ class ItemConfig(models.Model):
             models.Index(fields=['update_time'], name='item_update_time'),
         ]
 
+    def __str__(self):
+        return str(self.id)
+
 
 class UserBackpack(models.Model):
     id = models.BigAutoField(primary_key=True)
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     item = models.ForeignKey(ItemConfig, on_delete=models.CASCADE)
-    status = models.IntegerField(default=0,verbose_name='使用状态', choices=[(0, '待使用'), (1, '已使用')])
+    status = models.IntegerField(default=0, verbose_name='使用状态', choices=[(0, '待使用'), (1, '已使用')])
     idempotent = models.CharField(max_length=64, unique=True, verbose_name="幂等号")
     create_time = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     update_time = models.DateTimeField(auto_now=True, verbose_name='修改时间')
@@ -86,6 +95,6 @@ class UserBackpack(models.Model):
             models.Index(fields=['create_time'], name='backpack_create_time'),
             models.Index(fields=['update_time'], name='backpack_update_time'),
         ]
+
     def __str__(self):
         return str(self.id)
-

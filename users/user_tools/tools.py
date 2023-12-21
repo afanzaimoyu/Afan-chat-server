@@ -20,8 +20,8 @@ def generate_login_code(ip):
     # 使用哈希算法（这里使用 SHA-256）生成固定长度的摘要
     hashed_info = hashlib.sha256(combined_info.encode()).hexdigest()[:32]
 
-
     return hashed_info
+
 
 def extract_login_code_from_event_key(event_key: str) -> str:
     # 实现提取登录码的逻辑，根据实际情况修改
@@ -35,10 +35,10 @@ def get_token(user: AbstractBaseUser) -> Dict:
     values["refresh"] = str(refresh)
     values["access"] = str(refresh.access_token)
     return values
-def refresh_token(refresh:str)->Dict:
+
+
+def refresh_token(refresh: str) -> Dict:
     refresh = RefreshToken(refresh)
 
     access = {"access": str(refresh.access_token)}
     return access
-
-

@@ -1,5 +1,6 @@
 from .base import *  # noqa
 from .base import env
+
 # GENERAL
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#debug
@@ -31,16 +32,28 @@ CHANNEL_LAYERS = {
 # CACHES
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#caches
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379',
-        'OPTIONS': {
-            'db': '1',
-            'parser_class': 'redis.connection._HiredisParser',
-            'pool_class': 'redis.ConnectionPool',
-        }
+CONNECTION_CACHE_CONFIG = {
+    'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+    'LOCATION': 'redis://127.0.0.1:6379/1',  # 使用数据库 1
+    'OPTIONS': {
+        'parser_class': 'redis.connection._HiredisParser',
+        'pool_class': 'redis.ConnectionPool',
     }
+}
+
+# 发放物品缓存配置
+ITEM_CACHE_CONFIG = {
+    'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+    'LOCATION': f'redis://127.0.0.1:6379/2',  # 使用数据库 2
+    'OPTIONS': {
+        'parser_class': 'redis.connection._HiredisParser',
+        'pool_class': 'redis.ConnectionPool',
+    },
+    'KEY_PREFIX': 'item:',  # 添加前缀 'item:'
+}
+CACHES = {
+    'default': CONNECTION_CACHE_CONFIG,
+    'item_cache': ITEM_CACHE_CONFIG,
 }
 
 # # django-debug-toolbar
