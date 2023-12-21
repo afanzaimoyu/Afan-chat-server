@@ -26,36 +26,6 @@ class UserSchemaMix(Schema):
 
         return instance
 
-    @distribute_item
-    @transaction.atomic
-    def distribute_items(self, user_instance, item_id, idempotent_enum, business_id, idempotent=None):
-        """
-        发放物品功能
-            如需默认佩戴，子类继承该方法进行修改
-        Args:
-            user_instance: 用户实例
-            item_id: 要发放的物品id
-            idempotent_enum: 幂等类型  1:UID  2:消息id
-            business_id: 业务唯一标识
-            idempotent: 幂等键 ！！无需传入，装饰器自动组装！！
-
-        Returns:
-
-        """
-        # 检查是否已发放过
-        if user_instance.userbackpack_set.filter(idempotent=idempotent).exists():
-            return
-        # 检查物品是否存在
-        if not ItemConfig.objects.filter(id=item_id).exists():
-            return
-        # 检查用户是否已经有相同的徽章
-        if item_id in user_instance.get_user_badges:
-            return
-        # 发放物品
-        user_instance.backpacks.add(item_id,through_defaults={"idempotent":idempotent,})
-        return user_instance
-
-
 class UserInfoSchema(ModelSchema):
     modifyNameChance: int = -1
 

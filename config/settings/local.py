@@ -32,28 +32,26 @@ CHANNEL_LAYERS = {
 # CACHES
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#caches
-CONNECTION_CACHE_CONFIG = {
+DEFAULT_CACHE_CONFIG = {
     'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-    'LOCATION': 'redis://127.0.0.1:6379/1',  # 使用数据库 1
+    'LOCATION': 'redis://127.0.0.1:6379/0',
     'OPTIONS': {
         'parser_class': 'redis.connection._HiredisParser',
         'pool_class': 'redis.ConnectionPool',
     }
 }
 
-# 发放物品缓存配置
-ITEM_CACHE_CONFIG = {
-    'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-    'LOCATION': f'redis://127.0.0.1:6379/2',  # 使用数据库 2
-    'OPTIONS': {
-        'parser_class': 'redis.connection._HiredisParser',
-        'pool_class': 'redis.ConnectionPool',
-    },
-    'KEY_PREFIX': 'item:',  # 添加前缀 'item:'
-}
+
+def create_cache_config(key_prefix, db=0):
+    config = DEFAULT_CACHE_CONFIG.copy()
+    config['KEY_PREFIX'] = key_prefix
+    config['LOCATION'] = f'redis://127.0.0.1:6379/{db}'
+    return config
+
+
 CACHES = {
-    'default': CONNECTION_CACHE_CONFIG,
-    'item_cache': ITEM_CACHE_CONFIG,
+    'default': create_cache_config(key_prefix='default:'),
+    'item_cache': create_cache_config(key_prefix='item:'),
 }
 
 # # django-debug-toolbar

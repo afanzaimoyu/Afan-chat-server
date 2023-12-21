@@ -14,7 +14,7 @@ from ninja.parser import Parser
 from ninja.types import DictStrAny
 from ninja_extra import NinjaExtraAPI, api_controller, http_get, http_post
 
-from ninja_jwt.tokens import  AccessToken
+from ninja_jwt.tokens import AccessToken
 
 from config.settings.base import env
 from users.apis.wx_api import WeChatOAuth
@@ -33,7 +33,7 @@ class MyParser(Parser):
             return cast(DictStrAny, json.loads(request.body))
 
 
-api = AfanNinjaAPI(parser=MyParser(),urls_namespace="微信登录API")
+api = AfanNinjaAPI(parser=MyParser(), urls_namespace="微信登录API")
 
 
 class WxData(Schema):
@@ -129,9 +129,10 @@ class WeChatLoginApi:
                 async_to_sync(channel_layer.send)(channel_name, message)
 
             elif dic.get("Event") == "unsubscribe":
-                # 取消关注
-                user = get_object_or_404(CustomUser, open_id=openid)
-                user.delete()
+                # TODO: 取消关注
+                print("取消关注")
+                # user = get_object_or_404(CustomUser, open_id=openid)
+                # user.delete()
 
     @http_get("/auth")
     def my_auth(self, code: str):
@@ -172,7 +173,7 @@ class WeChatLoginApi:
     @http_get("/test", response=A)
     def test(self):
         t = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTcwMjgwMDIzMCwiaWF0IjoxNzAyNzEzODMwLCJqdGkiOiI4MzNlNWU3NDQ4NWM0NTcyYTk3ZDIyY2NmNzQxZGYyNSIsInVzZXJfaWQiOjF9.BXzmfimKZJZRVQvmgu2tQRz1ZP91uAvzHJMbJvMh0iE"
-        a =  refresh_token(t)
+        a = refresh_token(t)
         return a
         # decoded_payload = AccessToken(at).payload.get('user_id')
         #
@@ -183,7 +184,6 @@ class WeChatLoginApi:
         #     print(a)
         # except ninja_jwt.exceptions.TokenError as e:
         #     return HttpResponseBadRequest(str(e))
-
 
 
 api.register_controllers(

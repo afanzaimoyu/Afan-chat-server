@@ -21,7 +21,7 @@ class CacheLock:
                 return identifier
             wait_timeout -= 1
             time.sleep(1)
-        raise Business_Error(detail="无法获得徽章，请刷新重试", code=0)
+        raise Business_Error(detail="请求太频繁了", code=-3)
 
     def release_lock(self, lock_key, identifier):
         # 释放cache锁
