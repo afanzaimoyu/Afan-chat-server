@@ -19,6 +19,11 @@ xmltodict = "^0.13.0"
 mysqlclient = "^2.2.1"
 django-ninja-jwt = {extras = ["crypto"], version = "^5.2.10"}
 ninja-schema = "^0.13.6"
+celery = "^5.3.6"
+django-celery-beat = "^2.5.0"
+flower = "^2.0.1"
+django-celery-results = "^2.5.1"
+eventlet = "^0.34.2"
 
 [build-system]
 requires = ["poetry-core"]

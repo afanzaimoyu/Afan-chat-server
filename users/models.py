@@ -1,3 +1,5 @@
+from typing import Optional, Dict, Any
+
 from django.db import models, transaction
 from django.db.utils import IntegrityError
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
@@ -55,6 +57,13 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def get_oldest_rename_card(self):
         return self.get_rename_card().order_by("create_time").first()
 
+    def refresh_ip(self, ip):
+        if not ip:
+            return
+        if not self.ip_info:
+            self.ip_info = dict(createIp=ip)
+
+        self.ip_info["updateIp"] = ip
 
     @property
     def get_user_badges(self):

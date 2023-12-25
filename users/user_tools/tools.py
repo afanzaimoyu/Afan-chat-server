@@ -7,6 +7,7 @@ from typing import cast, Dict
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.models import AbstractUser
 from ninja_jwt.tokens import RefreshToken
+from ninja_jwt.utils import token_error
 
 
 def generate_login_code(ip):
@@ -28,6 +29,7 @@ def extract_login_code_from_event_key(event_key: str) -> str:
     return event_key.split("_")[1]
 
 
+@token_error
 def get_token(user: AbstractBaseUser) -> Dict:
     values = {}
     refresh = RefreshToken.for_user(user)
@@ -35,4 +37,3 @@ def get_token(user: AbstractBaseUser) -> Dict:
     values["refresh"] = str(refresh)
     values["access"] = str(refresh.access_token)
     return values
-

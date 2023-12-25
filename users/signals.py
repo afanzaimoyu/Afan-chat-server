@@ -1,8 +1,14 @@
+from django.contrib.auth.models import update_last_login
 from django.db.models.signals import post_save
-from django.dispatch import receiver
+from django.dispatch import receiver, Signal
+from django.utils import timezone
 
 from .models import *
+from .user_schema.ipinfo_schema import Ipinfo
 from .user_tools.cache_lock import distribute_item
+from users.tasks import refresh_ip_detail_async
+
+user_online_signal = Signal()
 
 
 @distribute_item
@@ -47,3 +53,17 @@ def create_rename_card(sender, instance, created, **kwargs):
             distribute_items(instance, 4, 1, instance)
 
 
+@receiver(user_online_signal, dispatch_uid="user_online")
+def user_online(sender, **kwargs):
+    # 更新 时间，在线状态，ip信息
+    user: CustomUser = kwargs.get('user')
+    ip = kwargs.get('ip')
+
+    user.last_login = timezone.now()
+    user.is_active = 1
+    user.refresh_ip(ip)
+    user.save()
+    print("更新成功")
+
+    # 解析ip
+    refresh_ip_detail_async.delay(user.id)

@@ -4,6 +4,7 @@ from typing import cast, Type, Optional, Any, Dict
 import xmltodict
 
 from asgiref.sync import async_to_sync
+from channels.consumer import AsyncConsumer
 from channels.layers import get_channel_layer
 
 from django.contrib.auth.models import update_last_login
@@ -18,6 +19,7 @@ from ninja.schema import DjangoGetter
 from ninja.types import DictStrAny
 
 from ninja_extra import NinjaExtraAPI, api_controller, http_get, http_post
+from ninja_extra.exceptions import ValidationError
 
 from ninja_jwt import exceptions
 from ninja_jwt.tokens import AccessToken, RefreshToken
@@ -29,6 +31,8 @@ from config.settings.base import env
 
 from users.apis.wx_api import WeChatOAuth
 from users.models import CustomUser
+from users.tasks import refresh_ip_detail_async
+from users.user_schema.ipinfo_schema import Ipinfo
 from users.user_tools.afan_ninja import AfanNinjaAPI
 from users.user_tools.tools import extract_login_code_from_event_key, get_token
 
@@ -117,8 +121,6 @@ class WeChatLoginApi:
         event_key = str(dic.get("EventKey"))
         print('ek---', event_key)
 
-        channel_layer = get_channel_layer()
-
         if dic.get("MsgType") == "event":
 
             if dic.get("Event") == "subscribe":
@@ -133,38 +135,15 @@ class WeChatLoginApi:
 
                 # 推送消息给用户（通过连接进行推送）
                 channel_name = cache.get(login_code)
-
-                print('get_channel_layer', channel_layer)
-                message = {
-                    "type": "type.message",
-                    "message": {
-                        "type": "2"
-                    }
-                }
-                async_to_sync(channel_layer.send)(channel_name, message)
+                communicates_with_websockets(channel_name, "loading_auth")
                 print("发送成功", res)
 
             elif dic.get("Event") == "SCAN":
                 # 用户已关注
                 user = get_object_or_404(CustomUser, open_id=openid)
-                user_token = get_token(user)
-                update_last_login(None, user)
 
                 channel_name = cache.get(event_key)
-                message = {
-                    "type": "type.message",
-                    "message": {
-                        "type": "3",
-                        "data": {
-                            "uid": user.id,
-                            "nickname": user.name,
-                            "avatar": user.avatar,
-                            "token": user_token
-                        }
-
-                    }
-                }
-                async_to_sync(channel_layer.send)(channel_name, message)
+                communicates_with_websockets(channel_name, "login_success", user.id)
 
             elif dic.get("Event") == "unsubscribe":
 
@@ -185,29 +164,15 @@ class WeChatLoginApi:
         nickname = user_info.get("nickname")
         avatar = user_info.get("headimgurl")
         user = CustomUser.objects.create_user(open_id, name=nickname, avatar=avatar)
-        user_token = get_token(user)
         print('用户信息保存成功')
 
-        # 发送成功信号
+        # 获取当前连接
         login_code = cache.get(open_id)
         channel_name = cache.get(login_code)
-        channel_layer = get_channel_layer()
-        message = {
-            "type": "type.message",
-            "message": {
-                "type": "3",
-                "data": {
-                    "uid": user.id,
-                    "nickname": nickname,
-                    "avatar": avatar,
-                    "token": user_token
-                }
+        if not login_code and not channel_name:
+            raise ValidationError(detail="授权失败，请重新扫码")
 
-            }
-        }
-        async_to_sync(channel_layer.send)(channel_name, message)
-        # 连接管理
-        cache.set(channel_name, user.id)
+        communicates_with_websockets(channel_name, "login_success", user.id)
 
     @http_post(
         "/refresh",
@@ -216,6 +181,42 @@ class WeChatLoginApi:
     )
     def refresh(self, refresh_token: TokenRefreshInputSchema):
         return refresh_token.dict()
+
+    @http_get("test")
+    def test(self ):
+
+        import time
+        start_time = time.time()
+        ip = "223.157.32.163"
+        # 测试代码
+
+        # print(refresh_ip_detail_async.delay(1))
+        print(refresh_ip_detail_async(1))
+        end_time = time.time()
+        print("用时：", end_time - start_time)
+
+
+
+
+
+def communicates_with_websockets(channel_name, event_type, user=None):
+    channel_layer = get_channel_layer()
+    message = None
+    if event_type == "loading_auth":
+        message = {
+            "type": "loading.auth",
+        }
+    elif event_type == "login_success":
+        message = {
+            "type": "login.success",
+            "user": user
+        }
+    try:
+        async_to_sync(channel_layer.send)(channel_name, message)
+    except Exception as e:
+        print(f"Error sending message: {e}")
+
+    # 用户成功上线事件
 
 
 api.register_controllers(
