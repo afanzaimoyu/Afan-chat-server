@@ -1,9 +1,11 @@
-from typing import Type, Any
+from typing import Type, Any, Optional, cast
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser, AnonymousUser
+from django.core.cache import cache
 from django.http import HttpRequest
 from django.utils.translation import gettext_lazy as _
+from ninja_extra.conf import settings
 from ninja_extra.security import HttpBearer
 from ninja_jwt.exceptions import TokenError, InvalidToken, AuthenticationFailed
 from ninja_jwt.settings import api_settings
@@ -40,7 +42,7 @@ class AfanJWTBaseAuthentication:
             }
         )
 
-    def get_user(self, validated_token) -> Type[AbstractUser]:
+    def get_user(self, validated_token, ip_address) -> Type[AbstractUser]:
         """
         Attempts to find and return a user using the given validated token.
         """
@@ -51,20 +53,44 @@ class AfanJWTBaseAuthentication:
                 _("Token contained no recognizable user identification")
             ) from e
 
+        black_list = cache.get("black_ipx", [])
+        if any(str(item) in black_list for item in (user_id, ip_address)):
+            raise AuthenticationFailed(_("Have been blocked"))
+
         try:
             user = self.user_model.objects.get(**{api_settings.USER_ID_FIELD: user_id})
         except self.user_model.DoesNotExist as e:
             raise AuthenticationFailed(_("User not found")) from e
 
         if not user.is_active:
-            raise AuthenticationFailed(_("User is inactive"))
+            raise AuthenticationFailed(_("user is inactive"))
 
         return user
 
+    def get_ident(self, request: HttpRequest) -> Optional[str]:
+        """
+        Identify the machine making the request by parsing HTTP_X_FORWARDED_FOR
+        if present and number of proxies is > 0. If not use all of
+        HTTP_X_FORWARDED_FOR if it is available, if not use REMOTE_ADDR.
+        """
+        xff = request.META.get("HTTP_X_FORWARDED_FOR")
+        remote_addr = request.META.get("REMOTE_ADDR")
+        num_proxies = settings.NUM_PROXIES
+
+        if num_proxies is not None:
+            if num_proxies == 0 or xff is None:
+                return remote_addr
+            addrs = xff.split(",")
+            client_addr = addrs[-min(num_proxies, len(addrs))]
+            return cast(str, client_addr.strip())
+
+        return "".join(xff.split()) if xff else remote_addr
+
     def jwt_authenticate(self, request: HttpRequest, token: str) -> Type[AbstractUser]:
         request.user = AnonymousUser()
+        ip_address = self.get_ident(request)
         validated_token = self.get_validated_token(token)
-        user = self.get_user(validated_token)
+        user = self.get_user(validated_token, ip_address)
         request.user = user
         return user
 

@@ -29,9 +29,9 @@ from pydantic import model_validator
 
 from config.settings.base import env
 
-from users.apis.wx_api import WeChatOAuth
-from users.models import CustomUser
-from users.tasks import refresh_ip_detail_async
+from users.apis.wx_controller import WeChatOAuth
+from users.models import CustomUser, Blacklist
+from users.tasks import refresh_ip_detail_async, send_message_all_async
 from users.user_schema.ipinfo_schema import Ipinfo
 from users.user_tools.afan_ninja import AfanNinjaAPI
 from users.user_tools.tools import extract_login_code_from_event_key, get_token
@@ -66,19 +66,6 @@ class TokenRefreshOutputSchema(Schema):
             data = {"access": str(refresh.access_token)}
             values.update(data)
         return values
-
-
-class MyParser(Parser):
-    def parse_body(self, request: HttpRequest) -> DictStrAny:
-        content_type = request.headers.get("Content-Type", "").lower()
-
-        if 'xml' in content_type:
-            return cast(DictStrAny, xmltodict.parse(request.body))
-        else:
-            return cast(DictStrAny, json.loads(request.body))
-
-
-api = AfanNinjaAPI(parser=MyParser(), urls_namespace="微信登录API")
 
 
 class WxData(Schema):
@@ -183,19 +170,12 @@ class WeChatLoginApi:
         return refresh_token.dict()
 
     @http_get("test")
-    def test(self ):
-
-        import time
-        start_time = time.time()
-        ip = "223.157.32.163"
-        # 测试代码
-
-        # print(refresh_ip_detail_async.delay(1))
-        print(refresh_ip_detail_async(1))
-        end_time = time.time()
-        print("用时：", end_time - start_time)
-
-
+    def test(self):
+        a = []
+        blacklist = Blacklist.objects.all().values_list("target", flat=True)
+        a.append(blacklist)
+        print(a)
+        # return blacklist
 
 
 
@@ -217,8 +197,3 @@ def communicates_with_websockets(channel_name, event_type, user=None):
         print(f"Error sending message: {e}")
 
     # 用户成功上线事件
-
-
-api.register_controllers(
-    WeChatLoginApi
-)

@@ -18,7 +18,7 @@ class CustomUserManager(BaseUserManager):
         return user
 
     def create_superuser(self, open_id, password=None, **extra_fields):
-        extra_fields.setdefault('is_staff', True)
+        # extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         return self.create_user(open_id, password=password, **extra_fields)
 
@@ -107,3 +107,35 @@ class UserBackpack(models.Model):
 
     def __str__(self):
         return str(self.id)
+
+
+class Blacklist(models.Model):
+    TYPE_CHOICES = [
+        (1, 'IP'),
+        (2, 'UID'),
+    ]
+
+    id = models.BigAutoField(primary_key=True)
+    type = models.IntegerField(choices=TYPE_CHOICES, verbose_name='拉黑目标类型')
+    target = models.CharField(max_length=32, verbose_name='拉黑目标')
+    create_time = models.DateTimeField(auto_now_add=True)
+    update_time = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('type', 'target')
+        verbose_name = '黑名单'
+        verbose_name_plural = '黑名单'
+
+    @staticmethod
+    def is_blacklisted(target_type: int, target_value: str) -> bool:
+        """
+        是否被拉黑
+        Args:
+            target_type: 目标类型（1代表IP，2代表UID）
+            target_value: 目标值
+
+        Returns:
+            bool: 是否被拉黑
+        """
+        return Blacklist.objects.filter(type=target_type, target=target_value).exists()
+

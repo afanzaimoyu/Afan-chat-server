@@ -4,22 +4,36 @@ from typing import List
 from django.core.cache import cache
 from django.db import connection
 from django.db.models import Q
+from django.http import HttpRequest
 from django.shortcuts import get_object_or_404
 from ninja_extra import NinjaExtraAPI, api_controller, http_get, http_put
 from ninja_extra.shortcuts import get_object_or_exception
 from ninja_jwt.authentication import JWTAuth
-from ninja_extra.permissions import IsAuthenticated
-
-from users.models import ItemConfig, CustomUser
-from users.user_schema.user_schema import UserInfoSchema, ModifyNameInput, BadgesOutSchema, WearingBadgeInput
+from ninja_extra.permissions import IsAuthenticated, BasePermission
+from typing import TYPE_CHECKING
+from users.models import ItemConfig, CustomUser, Blacklist
+from users.user_schema.user_schema import UserInfoSchema, ModifyNameInput, BadgesOutSchema, WearingBadgeInput, \
+    BlackInput
 from users.user_tools.afan_ninja import AfanNinjaAPI
 from users.user_tools.cache_lock import distribute_item
 from users.user_tools.cht_jwt_uthentication import AfanJWTAuth
 
-capi = AfanNinjaAPI(urls_namespace="User api")
+if TYPE_CHECKING:
+    from ninja_extra.controllers.base import ControllerBase  # pragma: no cover
 
 
+class IsGroupChatSuperAdministrator(BasePermission):
+    """
+    只允许群聊超级管理员访问
+    """
 
+    message = "群聊管理员没有该权限"
+
+    def has_permission(
+            self, request: HttpRequest, controller: "ControllerBase"
+    ) -> bool:
+        user = request.user or request.auth  # type: ignore
+        return bool(user and user.groups.filter(name__in=['超级管理员']).exists())
 
 
 @api_controller("/user", tags=["User 类"], auth=AfanJWTAuth(), permissions=[IsAuthenticated])
@@ -70,12 +84,15 @@ class UserController:
 
     @http_put("/badge", description="佩戴徽章")
     def wearing_badge(self, request, item_id: WearingBadgeInput):
-        # TODO: 佩戴徽章
+        # 佩戴徽章
         user = request.user
         item_id.update(user)
         return {"message": "OK"}
 
+    @http_put("/black", description="拉黑用户", permissions=[IsGroupChatSuperAdministrator])
+    def black(self, uid: BlackInput):
 
-capi.register_controllers(
-    UserController
-)
+        uid.black_user()
+        return {"message": "OK"}
+
+

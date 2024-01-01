@@ -212,3 +212,14 @@ CELERY_SEND_TASK_EVENTS = True
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#std-setting-task_send_sent_event
 # 设置任务发送事件，表示启用任务发送 "sent" 事件，以便能够在任务发送时接收通知。
 CELERY_TASK_SEND_SENT_EVENT = True
+
+CELERY_TASK_DEFAULT_QUEUE = 'default'
+CELERY_QUEUES = [
+    {"name": "default", "exchange": "default", "routing_key": "default"},
+    {"name": "send_message_queue", "exchange": "send_message_queue", "routing_key": "send_message_queue"},
+    {"name": "single_process_queue", "exchange": "single_process_queue", "routing_key": "single_process_queue"},
+]
+CELERY_TASK_ROUTES = {
+    'users.tasks.send_message_all_async': {'queue': 'send_message_queue'},
+    'users.tasks.refresh_ip_detail_async': {'queue': 'single_process_queue'},
+}

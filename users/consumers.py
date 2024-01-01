@@ -1,10 +1,11 @@
 from pprint import pprint
 
+from asgiref.sync import async_to_sync
 from channels.generic.websocket import JsonWebsocketConsumer
 from django.core.cache import cache
 
 from config.settings.base import env
-from users.apis.wx_api import WeChatOAuth
+from users.apis.wx_controller import WeChatOAuth
 from users.models import CustomUser
 from users.signals import user_online_signal
 from users.user_tools.tools import generate_login_code, get_token
@@ -17,7 +18,7 @@ class ChatConsumer(JsonWebsocketConsumer):
         pprint(self.scope)
 
         # 连接建立时，将连接加入到 "login_group"
-        self.channel_layer.group_add("chat_group", self.channel_name)
+        async_to_sync(self.channel_layer.group_add)("chat_group", self.channel_name)
 
         self.accept()
         print(self.channel_name)
@@ -31,7 +32,7 @@ class ChatConsumer(JsonWebsocketConsumer):
         # 删除 channles 与 uid 的关联
         # cache.delete(self.channel_name)
 
-        self.channel_layer.group_discard("chat_group", self.channel_name)
+        async_to_sync(self.channel_layer.group_discard)("chat_group", self.channel_name)
         self.close()
 
     def receive_json(self, content, **kwargs):
@@ -49,6 +50,10 @@ class ChatConsumer(JsonWebsocketConsumer):
         uid = event["user"] if event else self.scope['user']
         user = CustomUser.objects.get(id=uid)
         user_token = get_token(user)
+
+        # 判断用户是否是管理员或群聊管理员
+        is_admin_or_group_admin = 1 if user.groups.filter(name__in=['超级管理员', '群聊管理员']).exists() else 0
+
         # 推送成功消息
         self.send_json({
             "type": "3",
@@ -56,6 +61,7 @@ class ChatConsumer(JsonWebsocketConsumer):
                 "uid": user.id,
                 "nickname": user.name,
                 "avatar": user.avatar,
+                'power': is_admin_or_group_admin,
                 "token": user_token,
             }
         })
@@ -82,8 +88,15 @@ class ChatConsumer(JsonWebsocketConsumer):
         })
 
     def loading_auth(self, event=None):
+        print("loading_auth")
         self.send_json(
             {"type": 2}
+        )
+
+    def send_message_all(self, event=None):
+        print(event, "===")
+        self.send_json(
+            {"type": 5, "data": event["message"]}
         )
 
     def login_authentication(self):

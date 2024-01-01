@@ -1,12 +1,16 @@
+from asgiref.sync import async_to_sync, sync_to_async
+from channels.layers import get_channel_layer
 from django.contrib.auth.models import update_last_login
-from django.db.models.signals import post_save
+from django.core.cache import cache
+from django.db.models.signals import post_save, post_delete, pre_delete
+from django.db.transaction import on_commit
 from django.dispatch import receiver, Signal
 from django.utils import timezone
 
 from .models import *
 from .user_schema.ipinfo_schema import Ipinfo
 from .user_tools.cache_lock import distribute_item
-from users.tasks import refresh_ip_detail_async
+from users.tasks import refresh_ip_detail_async, send_message_all_async
 
 user_online_signal = Signal()
 
@@ -41,6 +45,16 @@ def distribute_items(user_instance, item_id, idempotent_enum, business_id, idemp
     return user_instance
 
 
+def update_blacklist_cache():
+    black_ipx_key = "black_ipx"
+
+    blacklist = list(Blacklist.objects.all().values_list("target", flat=True).distinct())
+
+    if blacklist:
+        cache.set(black_ipx_key, blacklist)
+    print("缓存更新成功")
+
+
 @receiver(post_save, sender=CustomUser)
 def create_rename_card(sender, instance, created, **kwargs):
     if created:
@@ -51,6 +65,37 @@ def create_rename_card(sender, instance, created, **kwargs):
             distribute_items(instance, 3, 1, instance)
         if user_list <= 100:
             distribute_items(instance, 4, 1, instance)
+
+
+# 当黑名单添加了type=2的时候，就会调用这个方法
+@receiver(post_save, sender=Blacklist)
+def change_user_status(sender, instance, created, **kwargs):
+    if created:
+        if instance.type == 2:
+            user = CustomUser.objects.get(id=instance.target)
+            user.status = 1
+            user.save(update_fields=['status'])
+            print("修改成功")
+    update_blacklist_cache()
+
+
+@receiver(post_delete, sender=Blacklist)
+def clear_black_cache(sender, instance, **kwargs):
+    update_blacklist_cache()
+
+
+@receiver(post_save, sender=Blacklist)
+def send_message(sender, instance, created, **kwargs):
+    if created:
+        if instance.type == 2:
+            print("发送消息")
+            message = {
+                "type": "send.message.all",
+                "message": {
+                    "user": instance.target,
+                }
+            }
+            send_message_all_async.delay(message)
 
 
 @receiver(user_online_signal, dispatch_uid="user_online")
@@ -66,4 +111,5 @@ def user_online(sender, **kwargs):
     print("更新成功")
 
     # 解析ip
-    refresh_ip_detail_async.delay(user.id)
+    on_commit(lambda: refresh_ip_detail_async.delay(user.id))
+    print("解析成功")

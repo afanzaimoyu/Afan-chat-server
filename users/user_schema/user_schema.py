@@ -4,9 +4,10 @@ from django.db import transaction
 from ninja_extra import service_resolver
 from ninja_extra.controllers import RouteContext
 from ninja_extra.exceptions import ParseError, ValidationError
+from ninja_extra.shortcuts import get_object_or_exception
 from ninja_schema import ModelSchema, Schema, model_validator
 from users.exceptions.chat import Business_Error
-from users.models import CustomUser, ItemConfig
+from users.models import CustomUser, ItemConfig, Blacklist
 from pydantic import model_validator as m
 
 from users.user_tools.cache_lock import distribute_item
@@ -25,6 +26,7 @@ class UserSchemaMix(Schema):
         instance.save()
 
         return instance
+
 
 class UserInfoSchema(ModelSchema):
     modifyNameChance: int = -1
@@ -88,3 +90,30 @@ class WearingBadgeInput(UserSchemaMix):
         elif value_data not in user.get_user_badges:
             raise Business_Error(detail="您还没有这个徽章，快去获得吧", code=0)
         return value_data
+
+
+class BlackInput(Schema):
+    uid: int
+
+    @model_validator("uid")
+    def validate_uid(cls, value_data):
+        context: RouteContext = service_resolver(RouteContext)
+        user = context.request.user
+        if value_data == user.id:
+            raise Business_Error(detail="不能拉黑自己", code=0)
+        elif Blacklist.is_blacklisted(2, value_data):
+            raise Business_Error(detail="已经拉黑了", code=0)
+        elif not CustomUser.objects.filter(id=value_data).exists():
+            raise Business_Error(detail="用户不存在", code=0)
+        return value_data
+
+    @transaction.atomic
+    def black_user(self) -> Any:
+        black_user = get_object_or_exception(CustomUser, id=self.uid)
+        Blacklist.objects.create(type=2, target=self.uid)
+        # 拉黑ip
+        create_ip = black_user.ip_info.get('createIp')
+        update_ip = black_user.ip_info.get('updateIp')
+
+        for ip in set(filter(None, [create_ip, update_ip])):
+            Blacklist.objects.create(type=1, target=ip)
