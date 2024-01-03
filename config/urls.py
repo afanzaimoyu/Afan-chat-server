@@ -24,6 +24,7 @@ from ninja.security import HttpBearer
 from ninja_extra import NinjaExtraAPI
 from ninja_schema.types import DictStrAny
 
+from contacts.friend_controller import ContactsController
 from users.apis.login_controller import WeChatLoginApi
 from users.apis.user_controller import UserController
 from users.user_tools.afan_ninja import AfanNinjaAPI
@@ -44,7 +45,8 @@ class MyParser(Parser):
 api = AfanNinjaAPI(parser=MyParser())
 api.register_controllers(
     WeChatLoginApi,
-    UserController
+    UserController,
+    ContactsController
 )
 
 urlpatterns = [

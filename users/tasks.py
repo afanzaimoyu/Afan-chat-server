@@ -62,6 +62,6 @@ def send_message_all_async(message):
     try:
         print("发送消息")
         channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.send)("chat_group", message)
+        async_to_sync(channel_layer.group_send)("chat_group", message)
     except Exception as e:
         print("error", e)

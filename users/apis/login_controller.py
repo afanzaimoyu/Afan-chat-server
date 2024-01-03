@@ -28,6 +28,7 @@ from ninja_jwt.utils import token_error
 from pydantic import model_validator
 
 from config.settings.base import env
+from contacts.models import UserFriend
 
 from users.apis.wx_controller import WeChatOAuth
 from users.models import CustomUser, Blacklist
@@ -171,11 +172,19 @@ class WeChatLoginApi:
 
     @http_get("test")
     def test(self):
-        a = []
-        blacklist = Blacklist.objects.all().values_list("target", flat=True)
-        a.append(blacklist)
-        print(a)
-        # return blacklist
+        current_user = CustomUser.objects.get(id=5)
+        friendships =list( UserFriend.objects.filter(uid=current_user.id)[:2])
+        # print(str(friendships.query))
+
+        # 通过 friendships 获取所有好友的 uid
+        friend_uids = [frend.friend_uid for frend in friendships]
+        print(friend_uids)
+
+        # 使用好友的 uid 查询好友的详细信息
+        friends = CustomUser.objects.filter(id__in=friend_uids)
+        for friend in friends:
+            print(friend.name)
+
 
 
 

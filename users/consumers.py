@@ -16,7 +16,6 @@ class ChatConsumer(JsonWebsocketConsumer):
     def connect(self):
         print("WebSocket 连接")
         pprint(self.scope)
-
         # 连接建立时，将连接加入到 "login_group"
         async_to_sync(self.channel_layer.group_add)("chat_group", self.channel_name)
 
@@ -29,8 +28,8 @@ class ChatConsumer(JsonWebsocketConsumer):
 
     def disconnect(self, code):
         print("WebSocket 断开")
-        # 删除 channles 与 uid 的关联
-        # cache.delete(self.channel_name)
+        # 删除 channels 与 uid 的关联
+        cache.delete(self.scope['user'])
 
         async_to_sync(self.channel_layer.group_discard)("chat_group", self.channel_name)
         self.close()
@@ -47,9 +46,13 @@ class ChatConsumer(JsonWebsocketConsumer):
                 pass
 
     def login_success(self, event=None):
-        uid = event["user"] if event else self.scope['user']
+        if event:
+            self.scope['user'] = event["user"]
+        uid = self.scope['user']
         user = CustomUser.objects.get(id=uid)
         user_token = get_token(user)
+        # 保存uid 和 channels 的关系
+        cache.set(uid, self.channel_name)
 
         # 判断用户是否是管理员或群聊管理员
         is_admin_or_group_admin = 1 if user.groups.filter(name__in=['超级管理员', '群聊管理员']).exists() else 0
@@ -91,6 +94,11 @@ class ChatConsumer(JsonWebsocketConsumer):
         print("loading_auth")
         self.send_json(
             {"type": 2}
+        )
+
+    def send_message(self, event):
+        self.send_json(
+            event["message"]
         )
 
     def send_message_all(self, event=None):
