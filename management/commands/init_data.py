@@ -2,7 +2,8 @@ from django.contrib.auth.models import Group
 from django.core.management.base import BaseCommand
 from django.db import IntegrityError
 
-from users.models import ItemConfig
+from chat.models import Room, RoomGroup
+from users.models import ItemConfig,CustomUser
 
 
 class Command(BaseCommand):
@@ -34,6 +35,12 @@ class Command(BaseCommand):
             ]
             for item in item_data:
                 ItemConfig.objects.get_or_create(**item)
+
+            CustomUser.objects.get_or_create(id=1, name='系统消息',
+                                avatar='http://mms1.baidu.com/it/u=1979830414,2984779047&fm=253&app=138&f=JPEG&fmt=auto&q=75?w=500&h=500')
+            Room.objects.get_or_create(id=1, type=1, hot_flag=1)
+            RoomGroup.objects.get_or_create(id=1, room_id=1, name='抹茶全员群',
+                                     avatar='https://mallchat.cn/assets/logo-e81cd252.jpeg')
 
             self.stdout.write(self.style.SUCCESS('初始化数据成功'))
         except IntegrityError as exc:
