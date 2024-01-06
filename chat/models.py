@@ -39,6 +39,11 @@ class Room(models.Model):
     def is_room_group(self):
         return self.type == self.Type.GROUP_CHAT
 
+    def refresh_active_time(self, msg_id, msg_time):
+        self.last_msg_id = msg_id
+        self.active_time = msg_time
+        self.save(update_fields=['last_msg_id', "active_time"])
+
 
 class RoomFriend(models.Model):
     class Status(models.IntegerChoices):
@@ -130,15 +135,26 @@ class Contact(models.Model):
             models.Index(fields=['update_time']),
         ]
 
+    @staticmethod
+    def refresh_or_create_active_time(room_id, member_uid_list, msg_id, active_time):
+        for uid in member_uid_list:
+            Contact.objects.update_or_create(room_id=room_id, uid_id=uid, last_msg_id=msg_id, active_time=active_time)
+
 
 class Message(models.Model):
     class Status(models.IntegerChoices):
         NORMAL = 0, "正常"
         DELETE = 1, "删除"
 
-    class Type(models.IntegerChoices):
-        NORMAL_TEXT = 1, "正常文本"
-        RETRACT_THE_MESSAGE = 2, "撤回消息"
+    class MessageTypeEnum(models.IntegerChoices):
+        TEXT = 1, "正常消息"
+        RECALL = 2, "撤回消息"
+        IMG = 3, "图片"
+        FILE = 4, "文件"
+        SOUND = 5, "语音"
+        VIDEO = 6, "视频"
+        EMOJI = 7, "表情"
+        SYSTEM = 8, "系统消息"
 
     room = models.ForeignKey(Room, on_delete=models.CASCADE, verbose_name="会话表id")
     from_user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='message_sender',
@@ -147,7 +163,7 @@ class Message(models.Model):
     reply_msg_id = models.BigIntegerField(null=True, blank=True, verbose_name="回复的消息内容")
     status = models.IntegerField(choices=Status.choices, verbose_name="消息状态 0正常 1删除")
     gap_count = models.IntegerField(null=True, blank=True, verbose_name="与回复的消息间隔多少条")
-    type = models.IntegerField(default=1, choices=Type.choices, verbose_name="消息类型 1正常文本 2.撤回消息")
+    type = models.IntegerField(default=1, choices=MessageTypeEnum.choices, verbose_name="消息类型 1正常文本 2.撤回消息")
     extra = models.JSONField(null=True, blank=True, verbose_name="扩展信息")
     create_time = models.DateTimeField(auto_now_add=True)
     update_time = models.DateTimeField(auto_now=True)
@@ -161,3 +177,28 @@ class Message(models.Model):
             models.Index(fields=['create_time']),
             models.Index(fields=['update_time']),
         ]
+
+    def get_GapCount(self, reply_msg_id):
+        return Message.objects.filter(room_id=self.room_id, id__gt=reply_msg_id, id__lt=self.id).count()
+
+
+class SecureInvokeRecord(models.Model):
+    class Status(models.IntegerChoices):
+        NORMAL = 1, "待执行"
+        DELETE = 2, "已失败"
+
+    secure_invoke_json = models.JSONField(verbose_name='请求快照参数json')
+    status = models.SmallIntegerField(verbose_name='状态', choices=Status.choices)
+    next_retry_time = models.DateTimeField(verbose_name='下一次重试的时间')
+    retry_times = models.IntegerField(verbose_name='已经重试的次数')
+    max_retry_times = models.IntegerField(verbose_name='最大重试次数')
+    fail_reason = models.TextField(verbose_name='执行失败的堆栈', blank=True, null=True)
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    update_time = models.DateTimeField(auto_now=True, verbose_name='修改时间')
+
+    class Meta:
+        db_table = 'secure_invoke_record'
+        indexes = [
+            models.Index(fields=['next_retry_time']),
+        ]
+        verbose_name = '本地消息表'

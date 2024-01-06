@@ -67,4 +67,4 @@ class ContactsController:
     def friend_list(self, request):
         uid = request.user
 
-        return {"uid": uid}
+        return {"&": {"uid": uid}}

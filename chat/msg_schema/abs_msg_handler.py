@@ -1,22 +1,11 @@
 from abc import abstractmethod, ABC, ABCMeta
 
-from django.db import models, transaction
-from ninja_schema import Schema
-from pydantic._internal import _model_construction
+from django.db import transaction
 
-from chat.models import Message
 from chat.msg_schema.msg_handler_factory import MsgHandlerFactory
 
 
-class MessageTypeEnum(models.IntegerChoices):
-    TEXT = 1, "正常消息"
-    RECALL = 2, "撤回消息"
-    IMG = 3, "图片"
-    FILE = 4, "文件"
-    SOUND = 5, "语音"
-    VIDEO = 6, "视频"
-    EMOJI = 7, "表情"
-    SYSTEM = 8, "系统消息"
+
 
 
 class AbsMetaMsgHandler(ABCMeta):
@@ -53,8 +42,8 @@ class AbstractMsgHandler(metaclass=AbsMetaMsgHandler):
         # # 统一保存
         insert = request.save_msg(uid)
         # # 子类扩展保存
-        self.save_msg(insert, body)
-        return insert.id
+        resp_body = self.save_msg(insert, body)
+        return insert
 
     @abstractmethod
     def save_msg(self, message, body):
@@ -63,9 +52,9 @@ class AbstractMsgHandler(metaclass=AbsMetaMsgHandler):
     @abstractmethod
     def show_msg(self, msg):
         pass
-
+    @staticmethod
     @abstractmethod
-    def show_reply_msg(self, msg):
+    def show_reply_msg(msg):
         pass
 
     @abstractmethod

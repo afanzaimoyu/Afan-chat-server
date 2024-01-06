@@ -1,17 +1,21 @@
-from datetime import datetime
+from datetime import timedelta
 from typing import Dict, Any, Generic, List, TypeVar, Optional
 
-from django.core.cache import cache
 from django.db import transaction
+from django.utils import timezone
 from ninja_extra import service_resolver
 from ninja_extra.controllers import RouteContext
+from ninja_extra.exceptions import NotFound
 from ninja_extra.schemas.response import Url, T
+from ninja_extra.shortcuts import get_object_or_exception
 from ninja_schema import model_validator, Schema
 from pydantic import Field
 
 from chat.models import *
+from chat.signals import on_messages
 from chat.msg_schema.abs_msg_handler import AbstractMsgHandler
 from chat.msg_schema.msg_handler_factory import MsgHandlerFactory
+
 from users.exceptions.chat import Business_Error
 
 
@@ -62,9 +66,11 @@ class MessageInput(MessageBase):
         # s.checkMsg
         # s
         msgHandler: AbstractMsgHandler = MsgHandlerFactory.get_strategy_no_null(self.msgType)()
-        msgHandler.check_and_save_msg(self, user.id)
-
+        msg = msgHandler.check_and_save_msg(self, user.id)
+        rsp = msgHandler.show_msg(msg)
         # 发布消息发送事件
+        on_messages.send(sender=self.__class__, msg_id=msg.id)
+        return rsp
 
 
 class TextMsgBody(MessageBase):
@@ -79,7 +85,7 @@ class MsgRecall(Schema):
     撤回的时间点
     """
     recallUid: int
-    recallTime: datetime
+    recallTime: str
 
 
 class BaseFileSchema(Schema):
@@ -155,3 +161,28 @@ class MessageExtra(MessageBase):
     soundMsg: SoundMsgSchema = None
     videoMsg: VideoMsgSchema = None
     emojisMsg: EmojisMsgSchema = None
+
+
+class ChatMessageBaseReq(Schema):
+    msgId: int = Field(..., description="消息id")
+    roomId: int = Field(..., description="会话id")
+
+    @model_validator("msgId")
+    def validate_uid(cls, value_data):
+
+        cls.message = get_object_or_exception(
+            klass=Message, error_message="消息有误", exception=NotFound, pk=value_data
+        )
+        if cls.message.type == Message.MessageTypeEnum.RECALL:
+            raise Business_Error(detail="消息无法撤回", code=0)
+
+        if timezone.now() - cls.message.create_time > timedelta(minutes=2):
+            raise Business_Error(detail="覆水难收，超过两分钟的消息不能撤回哦~~~", code=0)
+        return value_data
+
+    def recall(self, recal_uid):
+        self.message.type = Message.MessageTypeEnum.RECALL
+        recall_extra = MessageExtra(recall=dict(recallUid=recal_uid, recallTime=str(timezone.now()))).dict(exclude_none=True)
+        self.message.extra.update(recall_extra)
+        self.message.save(update_fields=['extra', "type"])
+

@@ -34,7 +34,7 @@ class NormalPagination(PaginationBase):
         pageNo: int = Field(1, ge=1)
 
     def __init__(
-            self, page_size: int = 10,wrapper_consumer: Callable = None,**kwargs: Any
+            self, page_size: int = 10, wrapper_consumer: Callable = None, **kwargs: Any
     ) -> None:
         self.page_size = page_size
         self.wrapper_consumer = wrapper_consumer
@@ -101,16 +101,26 @@ class CursorPagination(PaginationBase):
         cursor = pagination.cursor
         page_size = pagination.pagesize
 
-        query = {self.cursor_column + '__gt': cursor}
+        query_and = {self.cursor_column + '__gt': cursor}
+        query_not = {}
+        query_or = {}
 
         # 扩展点，业务方可以在 SQL 中拼接一些查询条件
-        query.update(wrapper_consumer)
+        for k, v in wrapper_consumer.items():
+            match k:
+                case '&':
+                    query_and.update(v)
+                case "~":
+                    query_not = v
+                case "|":
+                    query_or = v
         # 获取满足条件的记录
         if self.select:
-            queryset = self.mapper.objects.filter(Q(**query)).select_related(self.select).order_by(self.cursor_column)[
+            queryset = self.mapper.objects.filter(Q(**query_and) & ~Q(**query_not) | Q(**query_or)).select_related(
+                self.select).order_by(self.cursor_column)[
                        :page_size + 1]
         else:
-            queryset = self.mapper.objects.filter(Q(**query)).order_by(self.cursor_column)[:page_size + 1]
+            queryset = self.mapper.objects.filter(Q(**query_and) & ~Q(**query_not) | Q(**query_or)).order_by(self.cursor_column)[:page_size + 1]
         print(queryset.query)
         if queryset:
             # 获取实际返回的记录
@@ -124,7 +134,6 @@ class CursorPagination(PaginationBase):
 
             # 是否最后一页判断
             is_last = len(records) != page_size + 1
-            print(display_records[0].friend.name)
             return OrderedDict(
                 [
                     ("list", display_records),
