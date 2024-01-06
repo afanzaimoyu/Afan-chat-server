@@ -36,12 +36,18 @@ class TextMsgHandler(AbstractMsgHandler):
                                                 exception=NotFound, pk=req.replyMsgId)
             if not reply_msg.room_id == room_id:
                 raise Business_Error(detail=f"只能回复相同会话内的内容", code=-2)
+        # @校验
+        if req.atUidList:
+            at_uid_list = set(req.atUidList)
+            existing_uid = set(CustomUser.objects.filter(id__in=at_uid_list).values_list('id', flat=True))
+            if at_uid_list - existing_uid:
+                raise Business_Error(detail="@用户不存在", code=0)
+
         return req
 
     def save_msg(self, message: Message.objects, body: TextMsgBody):
         extra = MessageExtra()
         message.content = body.content
-        message.extra = extra.dict(exclude_none=True)
 
         #  如果有回复消息
         if body.replyMsgId:
@@ -51,6 +57,9 @@ class TextMsgHandler(AbstractMsgHandler):
         # TODO:
         #  2.判断消息url跳转
         #  3.艾特功能
+        if body.atUidList:
+            extra.atUidList = body.atUidList
+        message.extra = extra.dict(exclude_none=True)
         message.save()
 
     def show_msg(self, msg):
