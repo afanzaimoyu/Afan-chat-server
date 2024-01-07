@@ -72,6 +72,6 @@ class ReplyMsg(Schema):
 
 class TextMsgRespSchema(Schema):
     content: str = Field(..., description="消息内容")
-    urlContentMap: Dict[str, Url] = Field({}, description="消息链接映射")
+    urlContentMap: Dict = Field({}, description="消息链接映射")
     atUidList: Optional[List[int]] = None
     reply: Optional[ReplyMsg] = Field(None, description="父消息，如果没有父消息，返回的是null")

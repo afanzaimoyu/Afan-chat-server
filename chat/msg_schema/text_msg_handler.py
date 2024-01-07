@@ -10,6 +10,7 @@ from chat.chat_schema import TextMsgBody, MessageExtra
 from chat.models import Message
 from chat.msg_schema.abs_msg_handler import AbstractMsgHandler
 from chat.msg_schema.msg_handler_factory import MsgHandlerFactory
+from chat.utils.url_discover.prioritized_url_discover import PrioritizedUrlDiscover
 from users.exceptions.chat import Business_Error
 from users.models import CustomUser
 
@@ -19,6 +20,7 @@ class TextMsgHandler(AbstractMsgHandler):
 
     def __init__(self):
         self.req_schema = TextMsgBody
+        self.discover = PrioritizedUrlDiscover()
 
     @staticmethod
     def get_msg_type_enum():
@@ -55,10 +57,14 @@ class TextMsgHandler(AbstractMsgHandler):
             message.gap_count = gap_count
             message.reply_msg_id = body.replyMsgId
         # TODO:
-        #  2.判断消息url跳转
         #  3.艾特功能
         if body.atUidList:
             extra.atUidList = body.atUidList
+        # 判断消息url跳转
+
+        url_content_map = self.discover.get_url_content_map(body.content)
+        extra.urlContentMap = url_content_map
+
         message.extra = extra.dict(exclude_none=True)
         message.save()
 

@@ -153,7 +153,7 @@ class MessageExtra(MessageBase):
     文件消息
     表情图片信息
     """
-    urlContentMap: Dict[str, Url] = {}
+    urlContentMap: Dict = {}
     recall: MsgRecall = None
     atUidList: List[int] = None
     fileMsg: FileMsgSchema = None
