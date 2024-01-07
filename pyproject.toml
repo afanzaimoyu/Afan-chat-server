@@ -27,6 +27,7 @@ eventlet = "^0.34.2"
 lxml = "^5.0.1"
 beautifulsoup4 = "^4.12.2"
 fake-useragent = "^1.4.0"
+pyahocorasick = "^2.0.0"
 
 [build-system]
 requires = ["poetry-core"]

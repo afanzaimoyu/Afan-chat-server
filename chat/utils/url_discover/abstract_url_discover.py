@@ -18,7 +18,7 @@ class AbstractUrlDiscover(UrlDiscover):
             return {}
 
         match_list = [''.join(m) for m in re.findall(self.PATTERN, content)]
-        with ThreadPoolExecutor() as executor:
+        with ThreadPoolExecutor(max_workers=10) as executor:
             results = list(executor.map(self.get_content, match_list))
         # results = []
         # for i in match_list:

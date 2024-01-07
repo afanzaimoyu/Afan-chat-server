@@ -1,3 +1,4 @@
+import time
 from typing import Optional, List
 
 from ninja_extra.exceptions import NotFound
@@ -10,6 +11,7 @@ from chat.chat_schema import TextMsgBody, MessageExtra
 from chat.models import Message
 from chat.msg_schema.abs_msg_handler import AbstractMsgHandler
 from chat.msg_schema.msg_handler_factory import MsgHandlerFactory
+from chat.utils.sensitive_word.sensitive_word_filter import MySQLSensitiveWordFilter
 from chat.utils.url_discover.prioritized_url_discover import PrioritizedUrlDiscover
 from users.exceptions.chat import Business_Error
 from users.models import CustomUser
@@ -45,6 +47,17 @@ class TextMsgHandler(AbstractMsgHandler):
             if at_uid_list - existing_uid:
                 raise Business_Error(detail="@用户不存在", code=0)
 
+        # 敏感词替换
+
+        start = time.time()
+        filter_instance = MySQLSensitiveWordFilter()
+
+        if filter_instance.has_sensitive_word(req.content):
+            filtered_text = filter_instance.filter(req.content)
+            req.content = filtered_text
+        print(time.time() - start)
+        print(filter_instance.automaton.__sizeof__())
+
         return req
 
     def save_msg(self, message: Message.objects, body: TextMsgBody):
@@ -56,7 +69,7 @@ class TextMsgHandler(AbstractMsgHandler):
             gap_count = message.get_GapCount(body.replyMsgId)
             message.gap_count = gap_count
             message.reply_msg_id = body.replyMsgId
-        # TODO:
+
         #  3.艾特功能
         if body.atUidList:
             extra.atUidList = body.atUidList

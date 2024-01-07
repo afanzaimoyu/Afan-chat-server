@@ -4,6 +4,7 @@ from pathlib import Path
 import environ
 from django.conf import settings
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
 APPS_DIR = BASE_DIR / "AfanChatServer"
@@ -225,3 +226,4 @@ CELERY_TASK_ROUTES = {
     'users.tasks.send_message_all_async': {'queue': 'send_message_queue'},
     'users.tasks.refresh_ip_detail_async': {'queue': 'single_process_queue'},
 }
+

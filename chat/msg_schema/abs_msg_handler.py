@@ -11,7 +11,6 @@ from chat.msg_schema.msg_handler_factory import MsgHandlerFactory
 class AbsMetaMsgHandler(ABCMeta):
     def __new__(mcs, name, bases, attrs):
         sub_cls = super().__new__(mcs, name, bases, attrs)
-        print(mcs, name, bases, attrs)
         MsgHandlerFactory.register(sub_cls.get_msg_type_enum(), sub_cls)
         return sub_cls
 
