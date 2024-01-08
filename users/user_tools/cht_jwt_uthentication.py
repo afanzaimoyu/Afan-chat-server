@@ -98,3 +98,23 @@ class AfanJWTBaseAuthentication:
 class AfanJWTAuth(AfanJWTBaseAuthentication, HttpBearer):
     def authenticate(self, request: HttpRequest, token: str) -> Any:
         return self.jwt_authenticate(request, token)
+
+
+class AfanJWTAuth2(AfanJWTBaseAuthentication, HttpBearer):
+    def __call__(self, request: HttpRequest) -> Optional[Any]:
+        headers = request.headers
+        auth_value = headers.get(self.header)
+        if not auth_value:
+            return self.authenticate(request, None)
+        parts = auth_value.split(" ")
+
+        if parts[0].lower() != self.openapi_scheme:
+            return self.authenticate(request, None)
+        token = " ".join(parts[1:])
+        return self.authenticate(request, token)
+
+    def authenticate(self, request: HttpRequest, token: Optional[str]) -> Any:
+        try:
+            return self.jwt_authenticate(request, token)
+        except Exception as e:
+            return AnonymousUser()

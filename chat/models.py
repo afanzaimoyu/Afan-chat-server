@@ -45,6 +45,7 @@ class Room(models.Model):
         self.save(update_fields=['last_msg_id', "active_time"])
 
 
+
 class RoomFriend(models.Model):
     class Status(models.IntegerChoices):
         NORMAL = 0, "正常"
@@ -66,6 +67,12 @@ class RoomFriend(models.Model):
             models.Index(fields=['create_time']),
             models.Index(fields=['update_time']),
         ]
+
+    def get_friend(self,uid):
+        if uid == self.uid1_id:
+            return self.uid2
+        elif uid == self.uid2_id:
+            return self.uid1
 
 
 class RoomGroup(models.Model):
@@ -135,6 +142,9 @@ class Contact(models.Model):
             models.Index(fields=['update_time']),
         ]
 
+
+
+
     @staticmethod
     def refresh_or_create_active_time(room_id, member_uid_list, msg_id, active_time):
         for uid in member_uid_list:
@@ -180,6 +190,7 @@ class Message(models.Model):
 
     def get_GapCount(self, reply_msg_id):
         return Message.objects.filter(room_id=self.room_id, id__gt=reply_msg_id, id__lt=self.id).count()
+
 
 
 class SecureInvokeRecord(models.Model):
