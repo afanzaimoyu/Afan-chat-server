@@ -182,7 +182,25 @@ class ChatMessageBaseReq(Schema):
 
     def recall(self, recal_uid):
         self.message.type = Message.MessageTypeEnum.RECALL
-        recall_extra = MessageExtra(recall=dict(recallUid=recal_uid, recallTime=str(timezone.now()))).dict(exclude_none=True)
+        recall_extra = MessageExtra(recall=dict(recallUid=recal_uid, recallTime=str(timezone.now()))).dict(
+            exclude_none=True)
         self.message.extra.update(recall_extra)
         self.message.save(update_fields=['extra', "type"])
 
+
+class ChatMessageMarkReqSchema(Schema):
+    msgId: int = Field(..., description="消息id")
+    markType: int = Field(..., description="标记类型 1.点赞,2.举报", ge=1, le=2)
+    actType: int = Field(..., description="动作类型 1确认 2取消", ge=1, le=2)
+
+    def set_msg_mark(self, uid):
+        message = Message.objects.get(id=self.msgId)
+        if not message:
+            return
+        users = message.messagemark_set.values_list("user_id", flat=True)
+        # 如果已经标记过了 且做相同的标记
+        if uid in users and message.messagemark_set.get(user_id=uid).type == self.markType:
+            message.messagemark_set.get(user_id=uid).delete()
+        else:
+            # 否则 更新或创建新的记录
+            message.messagemark_set.update_or_create(user_id=uid, type=self.markType, status=self.actType)

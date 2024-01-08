@@ -1,8 +1,9 @@
-from django.db.models.signals import pre_save, post_save
+from django.db.models.signals import pre_save, post_save, post_delete
 from django.dispatch import receiver, Signal
 
-from chat.chat_message_resp import ChatMessageRespSchema, ChatMsgRecallRespSchema
-from chat.models import RoomFriend, Message, Contact
+from chat.chat_message_resp import ChatMessageRespSchema, ChatMsgRecallRespSchema, ChatMessageMarkRespSchema
+from chat.models import RoomFriend, Message, Contact, MessageMark
+from users.signals import distribute_items
 from users.tasks import send_message_all_async
 
 on_messages = Signal()
@@ -85,3 +86,45 @@ def recall_message(sender, instance, signal, created, update_fields, raw, using,
         }
         print(message)
         send_message_all_async.delay(message)
+
+
+@receiver(post_save, sender=MessageMark)
+def update_or_create_mark(sender, instance, created, **kwargs):
+    add_item_and_push(instance)
+
+
+@receiver(post_delete, sender=MessageMark)
+def delete_mark(sender, instance, **kwargs):
+    add_item_and_push(instance)
+
+
+def add_item_and_push(instance):
+    # 如果不是文本消息，直接返回
+    # 获取消息被标记的次数。
+    # 根据标记的类型和次数，判断是否满足升级条件。如果满足条件，给用户发送一张徽章
+    # 通过推送服务（pushService）发送推送消息，通知所有相关用户消息标记的情况。
+    message_type = instance.msg.type
+    if message_type != Message.MessageTypeEnum.TEXT:
+        return
+    mark_count = instance.mark_count()
+    print(instance.user_id)
+    print(type(instance.msg_id))
+    resp = ChatMessageMarkRespSchema(
+        uid=instance.user_id,
+        msgId=instance.msg_id,
+        markType=instance.type,
+        actType=instance.status,
+        markCount=instance.mark_count()
+    )
+    if mark_count >= 10:
+        distribute_items(instance.msg.from_user, 2, 2, instance.msg.id)
+    message = {
+        "type": "send.message",
+        "message": {
+            "type": 8,
+            "data": resp.dict()
+
+        }
+    }
+    print(message)
+    send_message_all_async.delay(message)

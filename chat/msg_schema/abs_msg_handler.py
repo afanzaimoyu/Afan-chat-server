@@ -5,9 +5,6 @@ from django.db import transaction
 from chat.msg_schema.msg_handler_factory import MsgHandlerFactory
 
 
-
-
-
 class AbsMetaMsgHandler(ABCMeta):
     def __new__(mcs, name, bases, attrs):
         sub_cls = super().__new__(mcs, name, bases, attrs)
@@ -51,6 +48,7 @@ class AbstractMsgHandler(metaclass=AbsMetaMsgHandler):
     @abstractmethod
     def show_msg(self, msg):
         pass
+
     @staticmethod
     @abstractmethod
     def show_reply_msg(msg):

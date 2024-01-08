@@ -75,3 +75,11 @@ class TextMsgRespSchema(Schema):
     urlContentMap: Dict = Field({}, description="消息链接映射")
     atUidList: Optional[List[int]] = None
     reply: Optional[ReplyMsg] = Field(None, description="父消息，如果没有父消息，返回的是null")
+
+
+class ChatMessageMarkRespSchema(Schema):
+    uid: int = Field(..., description="操作者")
+    msgId: int = Field(..., description="消息id")
+    markType: int = Field(..., description="消息id")
+    actType: int = Field(..., description="动作类型 1确认 2取消")
+    markCount: int = Field(..., description="被标记的数量")

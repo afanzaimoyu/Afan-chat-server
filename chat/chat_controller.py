@@ -7,7 +7,7 @@ from ninja_extra.permissions import IsAuthenticated, BasePermission
 from ninja_schema import Schema
 
 from chat.chat_message_resp import ChatMessageRespSchema
-from chat.chat_schema import MessageInput, ChatMessageBaseReq
+from chat.chat_schema import MessageInput, ChatMessageBaseReq, ChatMessageMarkReqSchema
 from chat.models import Message
 from chat.utils.sensitive_word.sensitive_word_filter import MySQLSensitiveWordFilter
 from chat.utils.url_discover.prioritized_url_discover import PrioritizedUrlDiscover
@@ -32,7 +32,6 @@ class IsGroupChatAdministrator(BasePermission):
 @api_controller("/chat", tags=["消息模块"], auth=AfanJWTAuth(), permissions=[IsAuthenticated])
 class ChatController:
 
-
     # TODO 频控
     @http_post("/msg", description="发送消息")
     def send_msg(self, request, msg_input: MessageInput):
@@ -50,6 +49,11 @@ class ChatController:
     def recall_msg(self, request, recall_param: ChatMessageBaseReq):
         uid = request.user.id
         recall_param.recall(uid)
+
+    @http_put("/msg/mark", description="消息标记")
+    def setMsgMark(self, request, mark_input: ChatMessageMarkReqSchema):
+        user = request.user
+        mark_input.set_msg_mark(user.id)
 
     @http_get("test")
     def test(self):

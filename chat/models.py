@@ -206,17 +206,17 @@ class SecureInvokeRecord(models.Model):
 
 class MessageMark(models.Model):
     class Type(models.IntegerChoices):
-        GROUP_CHAT = 1, "点赞"
-        ONE_ON_ONE_CHAT = 2, "举报"
+        MARK = 1, "点赞"
+        UN_MARK = 2, "举报"
 
     class Status(models.IntegerChoices):
-        NORMAL = 0, "正常"
-        DELETE = 1, "删除"
+        TRUE = 1, "确认"
+        FALSE = 2, "取消"
 
     msg = models.ForeignKey(Message, on_delete=models.CASCADE, verbose_name="消息")
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='msg_mark_user', verbose_name='标记人')
     type = models.IntegerField(choices=Type.choices, verbose_name="标记类型 1点赞 2举报")
-    status = models.IntegerField(choices=Status.choices, verbose_name="消息状态 0正常 1取消")
+    status = models.IntegerField(choices=Status.choices, verbose_name="动作类型 1确认 2取消")
     create_time = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     update_time = models.DateTimeField(auto_now=True, verbose_name='修改时间')
 
@@ -228,6 +228,11 @@ class MessageMark(models.Model):
             models.Index(fields=['update_time']),
         ]
         verbose_name = '消息标记表'
+
+    def mark_count(self):
+        mark = MessageMark.objects.filter(msg=self.msg, type=self.Type.MARK).count()
+        un_mark = MessageMark.objects.filter(msg=self.msg, type=self.Type.UN_MARK).count()
+        return mark - un_mark
 
 
 class SensitiveWord(models.Model):
