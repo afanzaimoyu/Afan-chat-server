@@ -3,7 +3,10 @@ from ninja_extra import api_controller, http_get, paginate
 from ninja_extra.permissions import IsAuthenticated
 
 from chat.chat_room_resp import ChatRoomCursorInputSchema
+from chat.models import Room, RoomFriend
 from contacts.utils.pagintion import CursorPagination
+from users.exceptions.chat import Business_Error
+from users.models import CustomUser
 from users.user_tools.cht_jwt_uthentication import AfanJWTAuth2
 
 
@@ -17,9 +20,24 @@ class ContactController:
         return cursor_input.get_contact_page(user)
 
     @http_get("/contact/detail", description="会话详情")
-    def get_contact_detail(self):
-        pass
+    def get_contact_detail(self, request, roomId: int):
+        user = request.user
+        room = None
+        if user.is_anonymous:
+            room = Room.objects.filter(id=roomId, hot_flag=Room.HotFlag.YES)
+        else:
+            room = Room.objects.filter(id=roomId)
+        if not room.exists():
+            raise Business_Error(detail="房间号有误", code=0)
+        return ChatRoomCursorInputSchema.build_contact_resp(user=request.user, rooms=[room.get()])[0]
 
     @http_get("/contact/detail/friend", description="会话详情(联系人列表发消息用)")
-    def get_contact_detail_by_friend(self):
-        pass
+    def get_contact_detail_by_friend(self, request, uid: int):
+        my = request.user
+
+        if my.is_anonymous:
+            raise Business_Error(detail="请先登录", code=0)
+        friend_room = RoomFriend.get_friend_room(my.id, uid)
+        if not friend_room:
+            raise Business_Error(detail="他不是你的好友", code=0)
+        return ChatRoomCursorInputSchema.build_contact_resp(user=request.user, rooms=[friend_room.room])[0]

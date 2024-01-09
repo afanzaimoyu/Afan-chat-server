@@ -1,13 +1,17 @@
 import time
+from typing import List
 
 from django.http import HttpRequest
 from django.utils import timezone
+from ninja import Query
 from ninja_extra import api_controller, http_post, http_get, paginate, http_put
 from ninja_extra.permissions import IsAuthenticated, BasePermission
 from ninja_schema import Schema
 
-from chat.chat_message_resp import ChatMessageRespSchema
-from chat.chat_schema import MessageInput, ChatMessageBaseReq, ChatMessageMarkReqSchema
+from chat.chat_message_resp import ChatMessageRespSchema, MessageReadInfoRespSchema
+from chat.chat_room_resp import PageSizeOutputBase
+from chat.chat_schema import MessageInput, ChatMessageBaseReq, ChatMessageMarkReqSchema, ChatMessageMemberReqSchema, \
+    ChatMessageReadInfoReqSchema, ChatMessageReadReqSchema, ChatMessageReadRespSchema
 from chat.models import Message
 from chat.utils.sensitive_word.sensitive_word_filter import MySQLSensitiveWordFilter
 from chat.utils.url_discover.prioritized_url_discover import PrioritizedUrlDiscover
@@ -54,6 +58,19 @@ class ChatController:
     def setMsgMark(self, request, mark_input: ChatMessageMarkReqSchema):
         user = request.user
         mark_input.set_msg_mark(user.id)
+
+    @http_get("/msg/read/page", description="消息已读未读列表", response=ChatMessageReadRespSchema)
+    def get_read_page(self, request, read_page: Query[ChatMessageReadReqSchema]):
+        user = request.user
+        return read_page.get_read_page(user)
+
+    @http_get("/msg/read", description="获取消息的已读未读总数", response=List[MessageReadInfoRespSchema])
+    def get_read_info(self, msg_id: Query[ChatMessageReadInfoReqSchema]):
+        return msg_id.get_msg_read_info()
+
+    @http_put("/msg/read", description="消息阅读上报")
+    def msg_read(self, request, read: ChatMessageMemberReqSchema):
+        read.msg_read(request.user)
 
     @http_get("test")
     def test(self):

@@ -2,6 +2,7 @@ from datetime import timedelta
 from typing import Dict, Any, Generic, List, TypeVar, Optional
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from ninja_extra import service_resolver
 from ninja_extra.controllers import RouteContext
@@ -11,6 +12,7 @@ from ninja_extra.shortcuts import get_object_or_exception
 from ninja_schema import model_validator, Schema
 from pydantic import Field
 
+from chat.chat_room_resp import ChatRoomCursorInputSchema, PageSizeOutputBase
 from chat.models import *
 from chat.signals import on_messages
 from chat.msg_schema.abs_msg_handler import AbstractMsgHandler
@@ -204,3 +206,87 @@ class ChatMessageMarkReqSchema(Schema):
         else:
             # 否则 更新或创建新的记录
             message.messagemark_set.update_or_create(user_id=uid, type=self.markType, status=self.actType)
+
+
+class ChatMessageMemberReqSchema(Schema):
+    roomId: int = Field(..., description="会话id")
+
+    def msg_read(self, user: CustomUser):
+        # room = Room.objects.get(id=self.roomId)
+        # if room.is_hot_room():
+        #     room.active_time = timezone.now()
+        # else:
+        Contact.objects.update_or_create(uid=user, room_id=self.roomId, read_time=timezone.now())
+
+
+class ChatMessageReadInfoReqSchema(Schema):
+    msgIds: str = Field(..., description="消息id集合，只查本人", max_length=20)
+
+    @model_validator('msgIds')
+    def for_me(cls, values):
+        context: RouteContext = service_resolver(RouteContext)
+        user: CustomUser = context.request.user
+        try:
+            values = sorted(list(map(lambda x: int(x), values.split(','))))
+        except Exception as e:
+            raise Business_Error(detail=f"{values}参数错误", code=0)
+
+        cls.messages = user.message_sender.filter(id__in=values)
+
+        if list(cls.messages.values_list('id', flat=True)) != values:
+            raise Business_Error(detail="只能查自己发送的消息", code=0)
+        room_ids = list(cls.messages.values_list('room_id', flat=True))
+        if len(set(room_ids)) > 1:
+            raise Business_Error(detail="只能查相同房间下的消息", code=0)
+
+        cls.total_count = Contact.objects.filter(room_id=room_ids[0]).count()
+
+    def get_msg_read_info(self):
+        return list(map(self.get_resp, self.messages))
+
+    def get_resp(self, msg):
+        read_count = msg.get_read_count
+        return dict(
+            msgId=msg.id,
+            readCount=msg.get_read_count,
+            unReadCount=self.total_count - read_count - 1
+        )
+
+
+class ChatMessageReadReqSchema(ChatRoomCursorInputSchema):
+    msgId: int = Field(..., description="消息id")
+    searchType: int = Field(..., description="查询类型 1已读 2未读", ge=1, le=2)
+
+    @model_validator("msgId")
+    def validate_msg(cls, value):
+        context: RouteContext = service_resolver(RouteContext)
+        user: CustomUser = context.request.user
+
+        message_query = Message.objects.filter(id=value)
+        if not message_query.exists():
+            raise Business_Error(detail="消息id有误", code=0)
+        if message_query.get().from_user_id != user.id:
+            raise Business_Error(detail="只能查看自己的消息", code=0)
+        cls.message = message_query.get()
+        return value
+
+    def get_read_page(self, user):
+        cursor = self.message.create_time if self.cursor == 0 else self.cursor
+        if self.searchType == 1:
+
+            query = self.message.room.contact_set.filter(Q(read_time__gte=cursor) & ~Q(uid=user))[
+                    :self.pagesize + 1]
+
+        else:
+            query = self.message.room.contact_set.filter(Q(read_time__lte=cursor) & ~Q(uid=user))[
+                    :self.pagesize + 1]
+        page = self.paginate_queryset(queryset=query, cursor_column='read_time')
+        return page
+
+
+class ChatMessageReadResp(Schema):
+    uid: int=Field(alias="uid_id")
+
+
+class ChatMessageReadRespSchema(PageSizeOutputBase):
+    list: List[ChatMessageReadResp] = None

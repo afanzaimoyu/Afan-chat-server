@@ -83,3 +83,9 @@ class ChatMessageMarkRespSchema(Schema):
     markType: int = Field(..., description="消息id")
     actType: int = Field(..., description="动作类型 1确认 2取消")
     markCount: int = Field(..., description="被标记的数量")
+
+
+class MessageReadInfoRespSchema(Schema):
+    msgId: int = Field(..., description="消息id")
+    readCount: int = Field(..., description="已读数")
+    unReadCount: int = Field(..., description="未读数")

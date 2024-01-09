@@ -40,6 +40,7 @@ def on_message(sender, **kwargs):
     if room.is_hot_room():
         # 热门群聊推送所有在线的人
         # TODO 更新热门群聊时间 -redis zset
+
         # 推送所有人
         message = {
             "type": "send.message",
@@ -113,7 +114,7 @@ def add_item_and_push(instance):
         uid=instance.user_id,
         msgId=instance.msg_id,
         markType=instance.type,
-        actType=instance.status,
+        actType=instance.st,
         markCount=instance.mark_count()
     )
     if mark_count >= 10:

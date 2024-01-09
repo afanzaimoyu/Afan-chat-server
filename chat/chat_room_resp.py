@@ -19,9 +19,9 @@ class ChatRoomRespSchema(Schema):
     type: int = Field(None, description="房间类型 1群聊 2单聊", ge=1, le=2)
     hot_Flag: int = Field(None, description="是否全员展示的会话 0否 1是", ge=0, le=1)
     text: str = Field(None, description="最新消息")
-    activeTime: datetime = Field(None, description="房间最后活跃时间(用来排序)")
-    name: str = Field(None, description="会话名称")
-    avatar: str = Field(None, description="会话头像")
+    activeTime: Optional[datetime] = Field(None, description="房间最后活跃时间(用来排序)")
+    name: Optional[str] = Field(None, description="会话名称")
+    avatar: Optional[str] = Field(None, description="会话头像")
     unreadCount: int = Field(None, description="未读数")
 
 
@@ -30,9 +30,9 @@ class RoomBaseInfo(Schema):
     name: str = Field(None, description="会话名称")
     avatar: str = Field(None, description="会话头像")
     type: int = Field(None, description="房间类型 1群聊 2单聊", ge=1, le=2)
-    hot_Flag: int = Field(None, description="是否全员展示的会话 0否 1是", ge=0, le=1)
-    activeTime: datetime = Field(None, description="房间最后活跃时间(用来排序)")
-    lastMsgId: int = Field(None, description="最后一条消息id")
+    hot_Flag: Optional[int] = Field(0, description="是否全员展示的会话 0否 1是", ge=0, le=1)
+    activeTime: Optional[datetime] = Field(None, description="房间最后活跃时间(用来排序)")
+    lastMsgId: Optional[int] = Field(None, description="最后一条消息id")
 
 
 class PageSizeOutputBase(Schema):
@@ -45,7 +45,7 @@ class ChatRoomCursorInputSchema(Schema):
     cursor: Optional[int] = 0
     pagesize: int = Field(..., lt=200)
 
-    def paginate_queryset(self, queryset=None):
+    def paginate_queryset(self, queryset=None, cursor_column='id'):
 
         if queryset.exists():
             # 获取实际返回的记录
@@ -55,7 +55,7 @@ class ChatRoomCursorInputSchema(Schema):
             display_records = records[:self.pagesize]
 
             # 计算下一页的游标
-            next_cursor = str(getattr(records[-1], self.cursor_column)) if len(records) == self.pagesize + 1 else None
+            next_cursor = str(getattr(records[-1], cursor_column)) if len(records) == self.pagesize + 1 else None
 
             # 是否最后一页判断
             is_last = len(records) != self.pagesize + 1
@@ -82,13 +82,20 @@ class ChatRoomCursorInputSchema(Schema):
                 "active_time")
             hot_room_page = self.paginate_queryset(q2)
 
-            base_room.append(hot_room_page)
+            base_room+(hot_room_page.get('list',[]))
             # 基础会话和热门房间合并
-            if contact_page:
-                contact_page['list'] = base_room
-            else:
-                contact_page = hot_room_page
-            page = PageSizeOutputBase(**contact_page)
+            # if contact_page:
+            #     contact_page['list'] = base_room
+            # else:
+            #     contact_page = hot_room_page
+            all_contact_page = dict(
+                list=base_room,
+                is_last=max(contact_page.get('is_last'), hot_room_page.get('is_last')),
+                cursor=max(contact_page.get('cursor', 0), hot_room_page.get('cursor', 0))
+                if contact_page.get('cursor') and hot_room_page.get('cursor') else None
+            )
+
+            page = PageSizeOutputBase(**all_contact_page)
 
         else:
             # 未登录的用户，只能查看全局房间
@@ -102,21 +109,22 @@ class ChatRoomCursorInputSchema(Schema):
             page.list = result
         return page
 
-    def build_contact_resp(self, user, rooms: List[Any]):
+    @classmethod
+    def build_contact_resp(cls, user, rooms: List[Any]):
         result = list()
         # 表情和头像
-        room_base_info_list = self.get_room_base_info_list(rooms, user)
+        room_base_info_list = cls.get_room_base_info_list(rooms, user)
 
         # 最后一条消息
         # 消息未读数
         room_ids = [room_base_info.roomId for room_base_info in room_base_info_list]
-        un_read_count_map = self.get_un_read_count_map(user, room_ids)
+        un_read_count_map = cls.get_un_read_count_map(user, room_ids)
 
         for room_base_info in room_base_info_list:
             resp = ChatRoomRespSchema(
                 **room_base_info.dict(exclude='lastMsgId')
             )
-            message = Message.objects.get(id=room_base_info.lastMsgId)
+            message = Message.objects.get(id=room_base_info.lastMsgId) if room_base_info.lastMsgId else None
             if message:
                 msgHandler: AbstractMsgHandler = MsgHandlerFactory.get_strategy_no_null(message.type)()
                 resp.text = f'{message.from_user.name}:{msgHandler.show_contact_msg(message)}'
@@ -155,7 +163,9 @@ class ChatRoomCursorInputSchema(Schema):
                 room_base_info.name = room.roomgroup.name
                 room_base_info.avatar = room.roomgroup.avatar
             elif room.is_room_friend():
-                room_base_info.name = room.roomfriend.get_friend(user.id).name
-                room_base_info.avatar = room.roomfriend.get_friend(user.id).avatar
+                friend = room.roomfriend.get_friend(user.id)
+                if friend:
+                    room_base_info.name = friend.name
+                    room_base_info.avatar = friend.avatar
             result.append(room_base_info)
         return result
