@@ -20,17 +20,15 @@ import xmltodict
 from django.contrib import admin
 from django.http import HttpRequest
 from django.urls import path
-from ninja.security import HttpBearer
-from ninja_extra import NinjaExtraAPI
 from ninja_schema.types import DictStrAny
 
-from chat.chat_controller import ChatController
-from chat.contact_controller import ContactController
+from chat.controller.chat_controller import ChatController
+from chat.controller.contact_controller import ContactController
 from contacts.friend_controller import ContactsController
 from users.apis.login_controller import WeChatLoginApi
 from users.apis.user_controller import UserController
 from users.user_tools.afan_ninja import AfanNinjaAPI
-from typing import cast, Type, Optional, Any, Dict
+from typing import cast
 from ninja.parser import Parser
 
 
