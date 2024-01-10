@@ -13,6 +13,7 @@ from .user_tools.cache_lock import distribute_item
 from users.tasks import refresh_ip_detail_async, send_message_all_async
 
 user_online_signal = Signal()
+user_offline_signal = Signal()
 
 
 @distribute_item
@@ -113,3 +114,33 @@ def user_online(sender, **kwargs):
     # 解析ip
     on_commit(lambda: refresh_ip_detail_async.delay(user.id))
     print("解析成功")
+    online_offline_push(user, 2)
+
+
+@receiver(user_offline_signal, dispatch_uid="user_offline_signal")
+def save_db_and_push(sender, **kwargs):
+    # 更新 时间，在线状态，ip信息
+    uid = kwargs.get('uid')
+    user = CustomUser.objects.get(id=uid)
+
+    user.last_login = timezone.now()
+    user.is_active = 2
+    user.save()
+    online_offline_push(user,2)
+
+def online_offline_push(user,activeStatus):
+    body = dict(
+        onlineNum=CustomUser.objects.filter(is_active=1).count(),
+        changeList=[
+            dict(uid=user.id,
+                 activeStatus=activeStatus,
+                 lastOptTime=timezone.now().timestamp()
+                 )
+        ])
+    message = {
+        "type": "send.message.all",
+        "message": {
+            "data": body,
+        }
+    }
+    send_message_all_async.delay(message)

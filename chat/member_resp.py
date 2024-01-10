@@ -1,7 +1,11 @@
 from datetime import datetime
+from typing import List
 
 from ninja_schema import Schema
 from pydantic import Field
+
+from chat.chat_room_resp import PageSizeOutputBase
+from pydantic import Field, model_validator as pydantic_model_validator
 
 
 class MemberResp(Schema):
@@ -21,9 +25,30 @@ class ChatMemberListResp(Schema):
 class IdResp(Schema):
     id: int
 
+
 class WSMemberChange(Schema):
     roomId: int
     uid: int = Field(..., description="变动的uid")
     changeType: int = Field(..., description="变动类型1.加入2.移除")
     activeStatus: int = Field(..., description="在线状态1.在线2.离线")
     lastOptTime: datetime
+
+
+class ChatMemberRespBase(Schema):
+    uid: int = Field(alias="id")
+    activeStatus: int = Field(alias="is_active")
+    lastOptTime: str = Field(alias="last_login")
+
+    @pydantic_model_validator(mode="before")
+    def extract_name(cls, values: dict):
+        new_data = {}
+        for key, value in values.items():
+            if isinstance(value, datetime):
+                new_data[key.replace('uid__', '')] = str(value.timestamp())
+            else:
+                new_data[key.replace('uid__', '')] = value
+        return new_data
+
+
+class ChatMemberResp(PageSizeOutputBase):
+    list: List[ChatMemberRespBase] = None

@@ -10,6 +10,7 @@ from users.tasks import send_message_all_async
 
 on_messages = Signal()
 send_add_msg = Signal()
+send_delete_msg = Signal()
 
 
 @receiver(pre_save, sender=RoomFriend)
@@ -143,6 +144,7 @@ def send_add_msgs(sender, **kwargs):
     chat_message_req = build_group_add_message(room_group, user, room_user_list)
     chat_message_req.send_msg(2)
 
+
 @receiver(send_add_msg, dispatch_uid='send_add_msg')
 def send_change_push(sender, **kwargs):
     member_list = kwargs.get('group_members')
@@ -166,6 +168,30 @@ def send_change_push(sender, **kwargs):
         ws_push_member_change.delay(message)
 
 
+@receiver(send_delete_msg, dispatch_uid='send_delete_msg')
+def send_delete_push(sender, **kwargs):
+    uid = kwargs.get('uid')
+    member_uid_list = kwargs.get('member_uid_list')
+    room_group = kwargs.get('room_group')
+    for member_id in member_uid_list:
+        resp = WSMemberChange(
+            roomId=room_group.room_id,
+            uid=uid,
+            changeType=2,
+            activeStatus=None,
+            lastOptTime=None,
+        )
+        message = {
+            "type": "send.message",
+            "message": {
+                "type": 11,
+                "data": resp.dict(exclude_none=True)
+
+            }
+        }
+        ws_push_member_change.delay(message, to=member_id)
+
+
 def build_group_add_message(room_group, user, room_user_list):
     member_name = ','.join(map(lambda x: f"'{x.name}'", room_user_list))
     body = f"\"{user.name}\"邀请{member_name}加入群聊"
@@ -176,4 +202,3 @@ def build_group_add_message(room_group, user, room_user_list):
         msgType=Message.MessageTypeEnum.SYSTEM,
         body=body
     )
-

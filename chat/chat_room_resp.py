@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from datetime import datetime
-from typing import Optional, List, TypeVar, Any
+from typing import Optional, List, TypeVar, Any, Union
 
 from django.db.models import Q
 from ninja_schema import Schema
@@ -36,13 +36,13 @@ class RoomBaseInfo(Schema):
 
 
 class PageSizeOutputBase(Schema):
-    cursor: Optional[str] = None
+    cursor: Union[Optional[str], Optional[int]] = None
     is_last: bool = True
     list: List[T] = None
 
 
 class ChatRoomCursorInputSchema(Schema):
-    cursor: Optional[int] = 0
+    cursor: Union[Optional[str], Optional[int]] = 0
     pagesize: int = Field(..., lt=200)
 
     def paginate_queryset(self, queryset=None, cursor_column='id'):
@@ -72,17 +72,17 @@ class ChatRoomCursorInputSchema(Schema):
         if user.id:
             # 用户基础会话
             user = CustomUser.objects.get(id=5)
-            queryset = user.chat_contact_user.filter(id__gt=self.cursor).order_by("active_time")[:self.pagesize + 1]
+            queryset = user.chat_contact_user.filter(id__gte=self.cursor).order_by("active_time")[:self.pagesize + 1]
             contact_page = self.paginate_queryset(queryset)
 
             base_room = [contact.room for contact in contact_page.get('list')] if contact_page else []
 
             # 热门房间
-            q2 = Room.objects.filter(id__gt=self.cursor, id__lt=self.pagesize, hot_flag=Room.HotFlag.YES).order_by(
+            q2 = Room.objects.filter(id__gte=self.cursor, id__lte=self.pagesize, hot_flag=Room.HotFlag.YES).order_by(
                 "active_time")
             hot_room_page = self.paginate_queryset(q2)
 
-            base_room+(hot_room_page.get('list',[]))
+            base_room + (hot_room_page.get('list', []))
             # 基础会话和热门房间合并
             # if contact_page:
             #     contact_page['list'] = base_room
@@ -99,7 +99,7 @@ class ChatRoomCursorInputSchema(Schema):
 
         else:
             # 未登录的用户，只能查看全局房间
-            queryset = Room.objects.filter(id__gt=self.cursor, hot_flag=Room.HotFlag.YES).order_by("active_time")[
+            queryset = Room.objects.filter(id__gte=self.cursor, hot_flag=Room.HotFlag.YES).order_by("active_time")[
                        :self.pagesize + 1]
             room_cursor_page = self.paginate_queryset(queryset)
             page = PageSizeOutputBase(**room_cursor_page)

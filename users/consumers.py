@@ -7,7 +7,7 @@ from django.core.cache import cache
 from config.settings.base import env
 from users.apis.wx_controller import WeChatOAuth
 from users.models import CustomUser
-from users.signals import user_online_signal
+from users.signals import user_online_signal, user_offline_signal
 from users.user_tools.tools import generate_login_code, get_token
 
 
@@ -30,8 +30,10 @@ class ChatConsumer(JsonWebsocketConsumer):
         print("WebSocket 断开")
         # 删除 channels 与 uid 的关联
         cache.delete(self.scope['user'])
+        user_offline_signal.send(sender=self.__class__, uid=self.scope['user'])
 
         async_to_sync(self.channel_layer.group_discard)("chat_group", self.channel_name)
+
         self.close()
 
     def receive_json(self, content, **kwargs):
