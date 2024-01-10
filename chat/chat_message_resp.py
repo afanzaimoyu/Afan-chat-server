@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Union
 
 from django.forms import model_to_dict
 from ninja_extra.schemas.response import Url
@@ -24,7 +24,7 @@ class MessageInfo(Schema):
     roomId: int = Field(..., alias="room", description="房间id")
     sendTime: datetime = Field(..., description="消息发送时间")
     type: int = Field(..., description="消息类型 1正常文本 2.撤回消息")
-    body: Dict = Field(..., description="消息内容不同的消息类型")
+    body: Union[Dict, str] = Field(..., description="消息内容不同的消息类型")
     messageMark: MessageMark = Field(MessageMark(), description="消息标记")
 
 
@@ -40,7 +40,9 @@ class ChatMessageRespSchema(Schema):
             message_dict: dict = model_to_dict(values)
         message_dict["sendTime"] = values.create_time
         message_dict.update({"body": message_dict.get("extra")})
-        if message_dict.get("content"):
+        if message_dict.get('type') == 8:
+            message_dict["body"] = message_dict.get("content")
+        elif message_dict.get("content"):
             message_dict["body"]["content"] = message_dict.get("content")
 
         return dict(fromUser=UserInfo(**message_dict), message=message_dict)

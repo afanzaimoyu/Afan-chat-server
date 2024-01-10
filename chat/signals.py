@@ -2,11 +2,14 @@ from django.db.models.signals import pre_save, post_save, post_delete
 from django.dispatch import receiver, Signal
 
 from chat.chat_message_resp import ChatMessageRespSchema, ChatMsgRecallRespSchema, ChatMessageMarkRespSchema
+from chat.member_resp import WSMemberChange
 from chat.models import RoomFriend, Message, Contact, MessageMark
+from chat.tasks import ws_push_member_change
 from users.signals import distribute_items
 from users.tasks import send_message_all_async
 
 on_messages = Signal()
+send_add_msg = Signal()
 
 
 @receiver(pre_save, sender=RoomFriend)
@@ -39,7 +42,7 @@ def on_message(sender, **kwargs):
 
     if room.is_hot_room():
         # 热门群聊推送所有在线的人
-        # TODO 更新热门群聊时间 -redis zset
+        # TODO 如果redis保存了热门群聊 更新热门群聊时间 -redis zset
 
         # 推送所有人
         message = {
@@ -129,3 +132,48 @@ def add_item_and_push(instance):
     }
     print(message)
     send_message_all_async.delay(message)
+
+
+@receiver(send_add_msg, dispatch_uid='send_add_msg')
+def send_add_msgs(sender, **kwargs):
+    member_list = kwargs.get('group_members')
+    room_group = kwargs.get('room_group')
+    user = kwargs.get('user')
+    room_user_list = list(map(lambda x: x.uid, member_list))
+    chat_message_req = build_group_add_message(room_group, user, room_user_list)
+    chat_message_req.send_msg(2)
+
+@receiver(send_add_msg, dispatch_uid='send_add_msg')
+def send_change_push(sender, **kwargs):
+    member_list = kwargs.get('group_members')
+    room_group = kwargs.get('room_group')
+    for member in member_list:
+        resp = WSMemberChange(
+            roomId=room_group.room_id,
+            uid=member.uid_id,
+            changeType=1,
+            activeStatus=member.uid.is_active,
+            lastOptTime=member.uid.last_login,
+        )
+        message = {
+            "type": "send.message",
+            "message": {
+                "type": 11,
+                "data": resp.dict()
+
+            }
+        }
+        ws_push_member_change.delay(message)
+
+
+def build_group_add_message(room_group, user, room_user_list):
+    member_name = ','.join(map(lambda x: f"'{x.name}'", room_user_list))
+    body = f"\"{user.name}\"邀请{member_name}加入群聊"
+    from chat.chat_schema import MessageInput
+
+    return MessageInput(
+        roomId=room_group.room_id,
+        msgType=Message.MessageTypeEnum.SYSTEM,
+        body=body
+    )
+

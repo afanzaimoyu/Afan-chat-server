@@ -24,6 +24,7 @@ from ninja_schema.types import DictStrAny
 
 from chat.controller.chat_controller import ChatController
 from chat.controller.contact_controller import ContactController
+from chat.controller.room_controller import RoomController
 from contacts.friend_controller import ContactsController
 from users.apis.login_controller import WeChatLoginApi
 from users.apis.user_controller import UserController
@@ -48,7 +49,8 @@ api.register_controllers(
     UserController,
     ContactsController,
     ChatController,
-    ContactController
+    ContactController,
+    RoomController
 )
 
 urlpatterns = [

@@ -1,2 +1,2 @@
-a= [1,2,3]
-print(a == [1,2,3])
+member_name = map(lambda x: f'\\{x}\\', ["a","b"])
+print(','.join(member_name))

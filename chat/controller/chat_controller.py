@@ -40,7 +40,7 @@ class ChatController:
     @http_post("/msg", description="发送消息")
     def send_msg(self, request, msg_input: MessageInput):
         user = request.user
-        rsp = msg_input.send_msg(user)
+        rsp = msg_input.send_msg(user.id)
         return rsp
 
     @http_get("/public/msg/page", description="消息列表",

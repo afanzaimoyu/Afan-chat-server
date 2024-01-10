@@ -34,12 +34,12 @@ class Command(BaseCommand):
                  'describe': '项目contributor专属徽章'}
             ]
             for item in item_data:
-                ItemConfig.objects.get_or_create(**item)
+                ItemConfig.objects.update_or_create(**item)
 
-            CustomUser.objects.get_or_create(id=2, name='系统消息',
+            CustomUser.objects.update_or_create(id=2, name='系统消息',
                                 avatar='http://mms1.baidu.com/it/u=1979830414,2984779047&fm=253&app=138&f=JPEG&fmt=auto&q=75?w=500&h=500')
-            Room.objects.get_or_create(id=1, type=1, hot_flag=1)
-            RoomGroup.objects.get_or_create(id=1, room_id=1, name='抹茶全员群',
+            Room.objects.update_or_create(id=1, type=1, hot_flag=1)
+            RoomGroup.objects.update_or_create(id=1, room_id=1, name='抹茶全员群',
                                      avatar='https://mallchat.cn/assets/logo-e81cd252.jpeg')
 
             self.stdout.write(self.style.SUCCESS('初始化数据成功'))

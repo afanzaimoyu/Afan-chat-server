@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import Dict, Any, Generic, List, TypeVar, Optional
+from typing import Dict, Any, Generic, List, TypeVar, Optional, Union
 
 from django.db import transaction
 from django.db.models import Q
@@ -37,7 +37,7 @@ class MessageInput(MessageBase):
     """
     roomId: int = Field(..., description="房间id")
     msgType: int
-    body: Dict[str, Any]
+    body: Union[Dict[str, Any], str]
 
     @model_validator("roomId")
     def validate_uid(cls, value_data):
@@ -63,12 +63,12 @@ class MessageInput(MessageBase):
 
         return value_data
 
-    def send_msg(self, user):
+    def send_msg(self, uid):
         # 找到相对于的策略类 s
         # s.checkMsg
         # s
         msgHandler: AbstractMsgHandler = MsgHandlerFactory.get_strategy_no_null(self.msgType)()
-        msg = msgHandler.check_and_save_msg(self, user.id)
+        msg = msgHandler.check_and_save_msg(self, uid)
         rsp = msgHandler.show_msg(msg)
         # 发布消息发送事件
         on_messages.send(sender=self.__class__, msg_id=msg.id)

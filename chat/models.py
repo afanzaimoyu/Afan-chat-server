@@ -109,6 +109,7 @@ class GroupMember(models.Model):
         GROUP_LEADER = 1, "群主"
         ADMINISTRATOR = 2, "管理员"
         ORDINARY_MEMBERS = 3, "普通成员"
+        REMOVE = 4, "被移除的成员"
 
     group = models.ForeignKey(RoomGroup, on_delete=models.CASCADE, verbose_name="群组")
     uid = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='group_member_user',
