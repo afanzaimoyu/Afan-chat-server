@@ -25,7 +25,7 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": ["redis://192.168.2.8:6379/0"],
+            "hosts": [f"{env.str('REDIS_URL')}/0"],
         },
     },
 }
@@ -34,7 +34,7 @@ CHANNEL_LAYERS = {
 # https://docs.djangoproject.com/en/dev/ref/settings/#caches
 DEFAULT_CACHE_CONFIG = {
     'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-    'LOCATION': 'redis://192.168.2.8:6379/0',
+    'LOCATION': f"{env.str('REDIS_URL')}/0",
     'OPTIONS': {
         'parser_class': 'redis.connection._HiredisParser',
         'pool_class': 'redis.ConnectionPool',
@@ -45,7 +45,7 @@ DEFAULT_CACHE_CONFIG = {
 def create_cache_config(key_prefix, db=0):
     config = DEFAULT_CACHE_CONFIG.copy()
     config['KEY_PREFIX'] = key_prefix
-    config['LOCATION'] = f'redis://192.168.2.8:6379/{db}'
+    config['LOCATION'] = f"{env.str('REDIS_URL')}/{db}"
     return config
 
 

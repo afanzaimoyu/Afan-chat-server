@@ -17,18 +17,16 @@ services:
 
   db: # 数据库服务的名称
     image: mysql:latest # 指定镜像
-    build: # 指定构建镜像的上下文路径
-      context: . # 指定了构建上下文的路径，通常是 Dockerfile 所在的目录。
-      dockerfile: ./compose/production/mysql/Dockerfile # 指定了 Dockerfile 的路径。
     container_name: project_production_postgres # 指定了容器的名称。
     volumes: # 定义了两个数据卷
       - project_db_vol:/var/lib/mysql:rw
-      - ./compose/local/mysql/conf/my.cnf:/etc/mysql/my.cnf # 挂载配置文件
+      - ./compose/production/mysql/conf/my.cnf:/etc/mysql/my.cnf # 挂载配置文件
     env_file: # 指定了环境变量配置文件的路径。
-      - ./.envs/.local
+      - ./.envs/.mysql
     ports: # 指定了端口映射关系。
       - '3306:3306'
     restart: always # 指定了容器的重启策略。
+
 
   django: &django  # &django 定义了一个锚点，*django 引用了这个锚点
     build:
