@@ -16,10 +16,6 @@ class Command(BaseCommand):
                 {"id": 1, "name": '超级管理员'}, {"id": 2, "name": '群聊管理员'}, {"id": 3, "name": '群聊成员'}]
             for group in group_data:
                 Group.objects.get_or_create(**group)
-            # TODO 初始化permission
-            permission_list = ['撤回用户消息', '拉黑用户']
-            # for permission_name in permission_list:
-            #     Permission.objects.get_or_create(name=permission_name)
             # 初始化item
             item_data = [
                 {'id': 1, 'item_type': 1, 'img': None,

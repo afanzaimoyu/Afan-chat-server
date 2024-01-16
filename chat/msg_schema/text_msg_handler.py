@@ -87,7 +87,7 @@ class TextMsgHandler(AbstractMsgHandler):
         at_uid_list = msg.extra.get("atUidList") if msg.extra else None
         url_count_map = msg.extra.get("urlContentMap") if msg.extra else None
         resp = TextMsgRespSchema(content=content, atUidList=at_uid_list, urlContentMap=url_count_map)
-        # TODO: 回复消息
+        # 回复消息
         reply = Message.objects.filter(id=msg.reply_msg_id, status=Message.Status.NORMAL) if msg.reply_msg_id else None
         if reply and reply.exists():
             reply_message = reply.get()

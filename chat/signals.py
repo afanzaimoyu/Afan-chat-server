@@ -65,7 +65,7 @@ def on_message(sender, **kwargs):
             member_uid_list = [uid1, uid2]
         # 更新所有群成员的会话时间
         Contact.refresh_or_create_active_time(room.id, member_uid_list, message.message.id)
-        # TODO 推送房间成员
+        # 推送房间成员
         resp = {
             "type": "send.message",
             "message": {

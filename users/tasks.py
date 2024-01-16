@@ -58,7 +58,7 @@ def refresh_ip_detail_async(self, uid):
 @shared_task(ignore_result=True)
 def send_message_all_async(message):
     # TODO 优化任务过多的问题    任务队列满了，就不再发送任务
-    # TODO 发送失败，查询是channels layer 的原因 换channels-redis也许可以
+    # 发送失败，查询是channels layer 的原因 换channels-redis可以
     # 参考 : https://stackoverflow.com/questions/57595453/getting-django-channel-access-in-celery-task
     try:
         print("发送消息")

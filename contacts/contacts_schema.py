@@ -93,7 +93,7 @@ class DeleteFriendInput(Schema):
             raise Business_Error(detail=f"{value_data}已经删除了", code=0)
 
     def delete_friend(self, user):
-        # TODO 禁用房间
+        # 禁用房间
         self.queryset.update(delete_status=UserFriend.Delete.DELETED)
 
         # assert 好友数量不对
@@ -117,7 +117,7 @@ class ApproveInput(Schema):
 
     @transaction.atomic
     def agree_to_the_application(self, user):
-        # TODO
+
         # 同意申请
         user_apply = UserApply.objects.get(id=self.applyId)
         user_apply.status = UserApply.Status.APPROVED

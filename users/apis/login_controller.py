@@ -95,7 +95,7 @@ class WeChatLoginApi:
     @http_post("/login")
     def concern(self, openid: str, data: WxData):
         """
-        TODO: 关注授权等一系列流程
+        关注授权等一系列流程
         Args:
             openid:
             data:
