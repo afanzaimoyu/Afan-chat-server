@@ -1,0 +1,67 @@
+@startuml
+
+!define RECTANGLE class
+
+RECTANGLE Client {
+  + 用户界面
+}
+
+RECTANGLE Nginx {
+  + HTTP
+  + Web Sockets
+}
+
+package "Django服务" as django {
+  RECTANGLE Daphne {
+    + ASGI
+  }
+
+  RECTANGLE Channels {
+    + Web Sockets
+    + ASGI
+  }
+
+  RECTANGLE Django {
+    + 业务逻辑
+    + 数据访问
+  }
+}
+
+package "第三方服务" as ThirdPartyServers {
+  RECTANGLE WeChat {
+    + HTTP
+  }
+  RECTANGLE ChatGpt {
+    + HTTP
+  }
+}
+
+RECTANGLE Redis {
+  + 缓存
+  + 发布/订阅
+}
+
+RECTANGLE MySQL {
+  + 数据库
+}
+
+RECTANGLE MinIO {
+  + 对象存储
+}
+
+Client -> Nginx : 用户界面交互
+Client -> Nginx : 申请上传文件
+
+ThirdPartyServers --> Nginx : 第三方服务 HTTP 交互
+
+Nginx -> Daphne : 反向代理请求
+Nginx -> MinIO : 上传文件
+
+Daphne --> Channels : 异步请求传递
+Channels --> Django : 异步请求处理
+
+Django -> Redis : 缓存及异步任务操作
+Django -> MySQL : 数据库操作
+Django -> MinIO : 请求临时上传 URL
+
+@enduml

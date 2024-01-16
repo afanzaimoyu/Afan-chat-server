@@ -27,10 +27,7 @@ class ContactsController:
     def page(self, request):
         uid = request.user.id
 
-        user_apply_query = UserApply.objects.filter(uid=uid).select_related('target').values(
-            *[f.name for f in UserApply._meta.fields],
-            'target_id', 'target__id', "target__name", "target__avatar"
-        ).order_by("-create_time")
+        user_apply_query = UserApply.objects.filter(target=uid).values().order_by("create_time")
 
         return user_apply_query
 
@@ -63,7 +60,7 @@ class ContactsController:
         return True
 
     @http_get("/page", description="联系人列表", response=CursorPaginationResponseSchema[CustomUserFriend])
-    @paginate(CursorPagination, mapper=UserFriend, cursor_column="id", select="friend")
+    @paginate(CursorPagination, mapper=UserFriend, cursor_column="id", select="friend", order='create_time')
     def friend_list(self, request):
         uid = request.user
 

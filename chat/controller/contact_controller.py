@@ -20,13 +20,13 @@ class ContactController:
         return cursor_input.get_contact_page(user)
 
     @http_get("/contact/detail", description="会话详情")
-    def get_contact_detail(self, request, roomId: int):
+    def get_contact_detail(self, request, id: int):
         user = request.user
         room = None
         if user.is_anonymous:
-            room = Room.objects.filter(id=roomId, hot_flag=Room.HotFlag.YES)
+            room = Room.objects.filter(id=id, hot_flag=Room.HotFlag.YES)
         else:
-            room = Room.objects.filter(id=roomId)
+            room = Room.objects.filter(id=id)
         if not room.exists():
             raise Business_Error(detail="房间号有误", code=0)
         return ChatRoomCursorInputSchema.build_contact_resp(user=request.user, rooms=[room.get()])[0]
@@ -37,6 +37,8 @@ class ContactController:
 
         if my.is_anonymous:
             raise Business_Error(detail="请先登录", code=0)
+        if my.id == uid:
+            raise Business_Error(detail="不能和自己聊天", code=0)
         friend_room = RoomFriend.get_friend_room(my.id, uid)
         if not friend_room:
             raise Business_Error(detail="他不是你的好友", code=0)

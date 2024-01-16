@@ -1,0 +1,409 @@
+@startuml
+
+participant Client as C
+participant Middleware as M
+participant Server as S
+database Redis
+
+C -> M: 发起 WebSocket 连接
+M -> M: 验证 Token 是否登录
+alt 登录成功
+  M --> S: 将连接加入 chat_group
+  M --> Redis: 保存用户和连接的关系
+end
+S --> C: 连接成功消息
+
+@enduml
+@startuml
+
+participant Client as C
+participant Server as S
+participant WeChat
+database Redis
+
+C -> S: 发送登录请求 (type=1)
+S -> WeChat: 请求微信获取二维码
+WeChat --> S: 返回登录二维码
+S --> C: 发送登录二维码
+
+@enduml
+@startuml
+
+participant Client as C
+participant Server as S
+participant WeChat
+database Redis
+
+C -> S: 用户扫码登录
+S -> WeChat: 判断是否已关注，获取用户信息
+alt 未关注
+  WeChat --> S: 公众号发送授权二维码
+  S --> C: 发送正在登录的通知
+  C -> S: 用户点击授权
+  S -> Redis: 保存用户信息
+  S --> C: 跳转登录成功方法
+else 已关注
+  WeChat --> S: 获取用户信息
+  S --> C: 跳转登录成功方法
+end
+
+@enduml
+@startuml
+
+participant Client as C
+participant Server as S
+participant Redis
+database MySQL
+
+C -> S: 用户登录成功
+S -> S: 生成 Token
+S -> S: 判断是否管理员
+alt 是管理员
+  S --> C: 发送登录成功消息（用户信息，Token，管理员标志）
+else 非管理员
+  S -> MySQL: 判断用户是否达到发放徽章要求
+  MySQL --> S: 返回判断结果
+  S --> C: 发送登录成功消息（用户信息，Token，非管理员标志，徽章信息）
+end
+
+@enduml
+
+@startuml
+participant Client as C
+participant Server as S
+participant WeChat
+database Redis
+database MySQL
+C -> S: 请求web socket连接
+S -> S: 中间件验证 Token 是否登录
+alt 未登录
+    C -> S: 用户请求登录
+    S -> Redis: 生成随机 code，临时保存和 socket 的映射
+    S -> WeChat: 向微信平台申请 code 事件码的临时二维码
+    WeChat --> S: 返回二维码给服务器
+    S --> C: 返回二维码给前端
+    C -> WeChat: 用户扫码关注公众号
+    WeChat -> S: 微信平台回调，带上 openid 和 code
+    S --> Redis: 临时保存 openid 和 code 的映射
+    S -> MySQL: 查找数据库是否有用户信息
+    MySQL --> S: 返回查找结果
+    alt 初次注册
+      S --> C: 服务器推送用户授权连接
+      C -> WeChat: 用户点击授权连接
+      WeChat --> S: 微信平台返回授权码给服务器
+      S -> WeChat: 通过授权码向微信平台获取 access token
+      WeChat --> S: 返回 access token
+      S -> WeChat: 通过 access token 获取用户信息
+      WeChat --> S: 返回用户信息
+      S -> MySQL: 在数据库内补充昵称和头像
+    end
+end
+S -> Redis: 保存用户和连接的关系
+S -->MySQL:获取用户信息
+S -> Redis: 根据 code 匹配 socket
+S --> C:主动推送登录成功消息
+@enduml
+
+@startuml
+actor User
+participant MessageSender
+database Room表 as Room
+database Contact表 as Contact
+database Message表 as Message
+
+
+
+User -> MessageSender: 发送消息
+MessageSender -> MessageSender: 验证消息类型
+MessageSender -> MessageSender: 查找策略类
+MessageSender -> MessageSender: 保存消息
+MessageSender -> MessageSender: 展示消息
+MessageSender -> MessageSender: 发布消息事件
+
+alt 是否是热门房间？
+  MessageSender -> Room: 刷新活跃时间
+  MessageSender -> Message: 保存消息
+  MessageSender -> MessageSender: 发送消息给所有在线用户
+else
+  alt 是否是群聊？
+    MessageSender -> Room: 刷新活跃时间
+    MessageSender -> Message: 保存消息
+    MessageSender -> Contact: 刷新或创建活跃时间
+  else
+    MessageSender -> Room: 刷新活跃时间
+    MessageSender -> Message: 保存消息
+    MessageSender -> Contact: 刷新或创建活跃时间
+  end
+end
+
+@enduml
+@startuml
+participant Sender
+participant MessageProcessor
+participant URLMatcher
+participant TitleParser
+participant CompletableFutureUtil
+
+Sender -> MessageProcessor: 发送消息
+MessageProcessor -> URLMatcher: 匹配URL
+URLMatcher -> TitleParser: 获取标题
+TitleParser -> CompletableFutureUtil: 异步解析标题
+CompletableFutureUtil -> TitleParser: 并行处理
+TitleParser -> TitleParser: 超时熔断
+TitleParser -> MessageProcessor: 返回标题
+MessageProcessor -> Sender: 发送消息（包含标题）
+@enduml
+
+@startuml
+participant MessageReceiver
+participant URLMatcher
+participant PageContentFetcher
+participant ParsingStrategyFactory
+participant ParsingStrategy
+participant ThreadPool
+participant Database
+
+MessageReceiver -> URLMatcher: 提取URL
+URLMatcher -> PageContentFetcher: 请求页面内容
+PageContentFetcher -> ParsingStrategyFactory: 获取解析策略
+ParsingStrategyFactory -> ParsingStrategy: 获取具体解析策略
+ParsingStrategy -> ThreadPool: 异步解析
+ThreadPool -> ParsingStrategy: 并行处理
+ParsingStrategy -> PageContentFetcher: 获取标题和描述
+PageContentFetcher -> PageContentFetcher: Head请求判断图片是否可请求
+PageContentFetcher -> PageContentFetcher: 请求图片
+PageContentFetcher -> PageContentFetcher: 超时熔断
+PageContentFetcher -> Database: 保存解析结果到数据库
+@enduml
+
+@startuml
+participant 前端
+participant 用户服务
+participant MinIO
+
+
+前端 -> 用户服务: 申请上传文件
+用户服务 -> MinIO: 申请临时上传url
+MinIO --> 用户服务: 返回临时上传url
+前端 --> MinIO: 上传文件
+前端 --> 用户服务: 上传成功,保存url
+用户服务 --> 前端: 获取url
+前端 --> MinIO: 下载文件
+@enduml
+@startuml
+
+!define RECTANGLE class
+
+RECTANGLE 数据库 {
+  + 加载敏感词(): List<String>
+}
+
+RECTANGLE Trie构建器 {
+  + 构建Trie(words: List<String>): Trie
+}
+
+RECTANGLE Trie {
+  + 匹配(text: String): List<匹配结果>
+}
+
+RECTANGLE 敏感词匹配器 {
+  + 匹配敏感词(text: String, trie: Trie): List<匹配结果>
+}
+
+RECTANGLE 文本处理器 {
+  + 替换敏感词(text: String, matches: List<匹配结果>): String
+}
+
+RECTANGLE 数据库写入器 {
+  + 存储到数据库(text: String): void
+}
+
+数据库 --> Trie构建器
+Trie构建器 --> Trie
+Trie --> 敏感词匹配器
+敏感词匹配器 --> 文本处理器
+文本处理器 --> 数据库写入器
+
+@enduml
+
+@startuml
+
+
+class 用户 {
+  + 查看会话列表(): List<会话>
+}
+
+class 会话 {
+  - 房间信息
+  - 最新消息
+  + 更新会话时间线()
+}
+
+class 收信箱 {
+  + 查询第一页(start, end): List<会话>
+  + 查询下一页(start, end): List<会话>
+}
+
+class 热点信箱 {
+  + 查询(start, end): List<会话>
+}
+
+class 数据库 {
+  + 存储用户会话信息()
+}
+
+用户 --> 收信箱
+用户 --> 热点信箱
+收信箱 --> 会话
+热点信箱 --> 会话
+会话 --> 数据库
+
+@enduml
+
+@startuml
+
+!define RECTANGLE class
+!define DATABASE class
+
+RECTANGLE Frontend {
+  + 主动翻页请求(pageSize, cursor)
+  + 成员列表展示
+  + 处理后台推送(user, status)
+}
+
+RECTANGLE Backend {
+  + 用户上线事件推送(user, onlineTime)
+  + 用户下线事件推送(user)
+}
+
+RECTANGLE MemberService {
+  + 获取成员列表(pageSize, cursor)
+  + 处理上线事件(user, onlineTime)
+  + 处理下线事件(user)
+}
+
+RECTANGLE CursorProcessor {
+  + 解析游标(cursor)
+  + 生成新的游标(user, status)
+}
+
+DATABASE MemberList {
+  + 在线成员列表
+  + 离线成员列表
+}
+
+Frontend --> MemberService: 主动翻页请求
+Frontend --> MemberService: 处理后台推送
+Backend --> MemberService: 用户上下线事件推送
+MemberService --> CursorProcessor: 解析游标
+MemberService --> MemberList: 获取成员列表
+MemberService --> MemberList: 处理上线/下线事件
+MemberService --> Frontend: 成员列表展示
+
+@enduml
+@startuml
+
+!define ENTITY class
+!define PK {field}
+!define FK {field}
+
+ENTITY Room {
+  PK id: int
+  type: int
+  hot_flag: int
+  active_time: datetime
+  last_msg_id: bigint
+  ext_json: json
+  create_time: datetime
+  update_time: datetime
+}
+
+ENTITY RoomFriend {
+  PK id: int
+  room_id: int
+  uid1: int
+  uid2: int
+  room_key: string
+  status: int
+  create_time: datetime
+  update_time: datetime
+}
+
+ENTITY RoomGroup {
+  PK id: int
+  room_id: int
+  name: string
+  avatar: string
+  ext_json: json
+  delete_status: int
+  create_time: datetime
+  update_time: datetime
+}
+
+ENTITY GroupMember {
+  PK id: int
+  group_id: int
+  uid: int
+  role: int
+  create_time: datetime
+  update_time: datetime
+}
+
+ENTITY Contact {
+  PK id: int
+  uid: int
+  room_id: int
+  read_time: datetime
+  active_time: datetime
+  last_msg_id: bigint
+  create_time: datetime
+  update_time: datetime
+}
+
+ENTITY Message {
+  PK id: int
+  room_id: int
+  from_user: int
+  content: string
+  reply_msg_id: bigint
+  status: int
+  gap_count: int
+  type: int
+  extra: json
+  create_time: datetime
+  update_time: datetime
+}
+
+ENTITY MessageMark {
+  PK id: int
+  msg: int
+  user: int
+  type: int
+  status: int
+  create_time: datetime
+  update_time: datetime
+}
+
+ENTITY SensitiveWord {
+  PK id: int
+  word: string
+}
+
+ENTITY Blacklist {
+  PK id: int
+  type: int
+  target: string
+  create_time: datetime
+  update_time: datetime
+}
+
+RoomFriend --|{ Room
+RoomGroup --|{ Room
+GroupMember --|{ RoomGroup
+Contact --|{ Room
+Message --|{ Room
+MessageMark --|{ Message
+SensitiveWord --|{ Message
+Blacklist --|{ SensitiveWord
+
+@enduml

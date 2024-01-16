@@ -12,6 +12,7 @@ from ninja_extra.shortcuts import get_object_or_exception
 from ninja_schema import model_validator, Schema
 from pydantic import Field
 
+from chat.chat_message_resp import ChatMessageRespSchema
 from chat.chat_room_resp import ChatRoomCursorInputSchema, PageSizeOutputBase
 from chat.models import *
 from chat.signals import on_messages
@@ -69,16 +70,17 @@ class MessageInput(MessageBase):
         # s
         msgHandler: AbstractMsgHandler = MsgHandlerFactory.get_strategy_no_null(self.msgType)()
         msg = msgHandler.check_and_save_msg(self, uid)
-        rsp = msgHandler.show_msg(msg)
+        body = msgHandler.show_msg(msg)
         # 发布消息发送事件
-        on_messages.send(sender=self.__class__, msg_id=msg.id)
-        return rsp
+        resp_message = ChatMessageRespSchema.get_resp(body, msg)
+        on_messages.send(sender=self.__class__, message=resp_message)
+        return resp_message.dict(exclude_none=True)
 
 
 class TextMsgBody(MessageBase):
     content: str
-    replyMsgId: int = None
-    atUidList: List = None
+    replyMsgId: Optional[int] = None
+    atUidList: Optional[List] = None
 
 
 class MsgRecall(Schema):
@@ -205,7 +207,8 @@ class ChatMessageMarkReqSchema(Schema):
             message.messagemark_set.get(user_id=uid).delete()
         else:
             # 否则 更新或创建新的记录
-            message.messagemark_set.update_or_create(user_id=uid, type=self.markType, status=self.actType)
+            message.messagemark_set.update_or_create(user_id=uid, status=self.actType,
+                                                     defaults={"type": self.markType})
 
 
 class ChatMessageMemberReqSchema(Schema):
@@ -216,11 +219,11 @@ class ChatMessageMemberReqSchema(Schema):
         # if room.is_hot_room():
         #     room.active_time = timezone.now()
         # else:
-        Contact.objects.update_or_create(uid=user, room_id=self.roomId, read_time=timezone.now())
+        Contact.objects.update_or_create(uid=user, room_id=self.roomId, defaults={"read_time": timezone.now()})
 
 
 class ChatMessageReadInfoReqSchema(Schema):
-    msgIds: str = Field(..., description="消息id集合，只查本人", max_length=20)
+    msgIds: str = Field(..., description="消息id集合，只查本人", max_length=100)
 
     @model_validator('msgIds')
     def for_me(cls, values):
@@ -275,17 +278,17 @@ class ChatMessageReadReqSchema(ChatRoomCursorInputSchema):
         if self.searchType == 1:
 
             query = self.message.room.contact_set.filter(Q(read_time__gte=cursor) & ~Q(uid=user))[
-                    :self.pagesize + 1]
+                    :self.pageSize + 1]
 
         else:
             query = self.message.room.contact_set.filter(Q(read_time__lte=cursor) & ~Q(uid=user))[
-                    :self.pagesize + 1]
+                    :self.pageSize + 1]
         page = self.paginate_queryset(queryset=query, cursor_column='read_time')
         return page
 
 
 class ChatMessageReadResp(Schema):
-    uid: int=Field(alias="uid_id")
+    uid: int = Field(alias="uid_id")
 
 
 class ChatMessageReadRespSchema(PageSizeOutputBase):

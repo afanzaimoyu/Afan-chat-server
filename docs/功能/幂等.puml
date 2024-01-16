@@ -1,0 +1,20 @@
+@startuml
+|购买|
+|注册|
+|消息被点赞|
+
+[用户背包]
+|-- 改名卡 --
+|-- 改名卡 --
+|-- 改名卡 --
+@enduml
+@startuml
+start
+
+:步骤一;
+:步骤二;
+:步骤三;
+:结果;
+note right: 结果
+stop
+@enduml

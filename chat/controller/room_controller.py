@@ -7,20 +7,24 @@ from pydantic import Field
 
 from chat.member_resp import MemberResp, ChatMemberListResp, IdResp, ChatMemberResp
 from chat.room_member_req import IdInput, GroupAddReq, MemberAddReq, MemberDelReq, MemberExitReq, AdminAddReq, \
-    AdminRevokeReq, MemberReq
-from users.user_tools.cht_jwt_uthentication import AfanJWTAuth
+    AdminRevokeReq, MemberReq, IdsInput
+from users.user_tools.cht_jwt_uthentication import AfanJWTAuth, AfanJWTAuth2
+
+
+@api_controller("/room/public", tags=["聊天室相关公共接口"], auth=AfanJWTAuth2())
+class RoomPublicController:
+    @http_get("/group", description="群组详情", response=MemberResp)
+    def group_detail(self, request, id_input: Query[IdsInput]):
+        return id_input.get_group_detail(request.user)
+
+    @http_get("/group/member/page", description="群成员列表",
+              response=ChatMemberResp)
+    def get_member_page(self, member_page: Query[MemberReq]):
+        return member_page.get_member_page()
 
 
 @api_controller("/room", tags=["聊天室相关接口"], auth=AfanJWTAuth(), permissions=[IsAuthenticated])
 class RoomController:
-
-    @http_get("/public/group", description="群组详情", response=MemberResp)
-    def group_detail(self, request, id_input: Query[IdInput]):
-        return id_input.get_group_detail(request.user)
-
-    @http_get("/public/group/member/page", description="群成员列表",response=ChatMemberResp)
-    def get_member_page(self, request, member_page: Query[MemberReq]):
-        return member_page.get_member_page(request.user)
 
     @http_get("/group/member/list", description="房间内的所有群成员列表-@专用", response=List[ChatMemberListResp])
     def get_member_list(self, id_input: Query[IdInput]):
@@ -35,10 +39,10 @@ class RoomController:
         delete_input.exit_group(request.user)
         return True
 
-    @http_post("/group", description="新增群组", response=IdResp)
+    @http_post("/group", description="新增群组")
     def add_group(self, add_input: GroupAddReq):
         room_id = add_input.add_group()
-        return {"id", room_id}
+        return dict(id=room_id)
 
     @http_post("/group/member", description="邀请好友")
     def add_member(self, request, add_input: MemberAddReq):

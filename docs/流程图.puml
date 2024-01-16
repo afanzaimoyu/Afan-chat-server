@@ -1,0 +1,22 @@
+@startuml
+'https://plantuml.com/activity-diagram-beta
+
+start
+:进入网站;
+: 点击扫码登录;
+  if (是否关注公众号) then (true)
+  else (false)
+    : 扫码 关注公众号;
+    : 点击授权 获取 用户基本信息;
+  endif
+fork
+    : 推送用户上线相关信息;
+fork again
+    : 更新 时间，在线状态，ip信息;
+end merge
+: 主页面;
+: 操作;
+
+stop
+
+@enduml

@@ -3,7 +3,6 @@ from pathlib import Path
 from django.apps import AppConfig
 from django.utils import timezone
 
-
 filter_instance = None
 
 
@@ -14,7 +13,6 @@ class ChatConfig(AppConfig):
     def ready(self):
         import chat.signals
         self.import_msg_handler()
-
 
     @staticmethod
     def import_msg_handler():

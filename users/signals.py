@@ -121,14 +121,16 @@ def user_online(sender, **kwargs):
 def save_db_and_push(sender, **kwargs):
     # 更新 时间，在线状态，ip信息
     uid = kwargs.get('uid')
-    user = CustomUser.objects.get(id=uid)
+    if uid:
+        user = CustomUser.objects.get(id=uid)
 
-    user.last_login = timezone.now()
-    user.is_active = 2
-    user.save()
-    online_offline_push(user,2)
+        user.last_login = timezone.now()
+        user.is_active = 2
+        user.save()
+        online_offline_push(user, 2)
 
-def online_offline_push(user,activeStatus):
+
+def online_offline_push(user, activeStatus):
     body = dict(
         onlineNum=CustomUser.objects.filter(is_active=1).count(),
         changeList=[
@@ -140,6 +142,7 @@ def online_offline_push(user,activeStatus):
     message = {
         "type": "send.message.all",
         "message": {
+            "type": 5,
             "data": body,
         }
     }

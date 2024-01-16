@@ -40,9 +40,9 @@ class Room(models.Model):
     def is_room_group(self):
         return self.type == self.Type.GROUP_CHAT
 
-    def refresh_active_time(self, msg_id, msg_time):
+    def refresh_active_time(self, msg_id):
         self.last_msg_id = msg_id
-        self.active_time = msg_time
+        self.active_time = self.message_set.filter(id=msg_id).get().create_time
         self.save(update_fields=['last_msg_id', "active_time"])
 
 
@@ -150,9 +150,11 @@ class Contact(models.Model):
         ]
 
     @staticmethod
-    def refresh_or_create_active_time(room_id, member_uid_list, msg_id, active_time):
+    def refresh_or_create_active_time(room_id, member_uid_list, msg_id):
+        active_time = Message.objects.get(id=msg_id).create_time
         for uid in member_uid_list:
-            Contact.objects.update_or_create(room_id=room_id, uid_id=uid, last_msg_id=msg_id, active_time=active_time)
+            Contact.objects.update_or_create(room_id=room_id, uid_id=uid,
+                                             defaults={"last_msg_id": msg_id, "active_time": active_time})
 
 
 class Message(models.Model):
@@ -173,7 +175,7 @@ class Message(models.Model):
     room = models.ForeignKey(Room, on_delete=models.CASCADE, verbose_name="会话表id")
     from_user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='message_sender',
                                   verbose_name='消息发送者')
-    content = models.CharField(max_length=1024, null=True, blank=True, verbose_name="消息内容")
+    content = models.TextField(max_length=1024, null=True, blank=True, verbose_name="消息内容")
     reply_msg_id = models.BigIntegerField(null=True, blank=True, verbose_name="回复的消息内容")
     status = models.IntegerField(choices=Status.choices, verbose_name="消息状态 0正常 1删除")
     gap_count = models.IntegerField(null=True, blank=True, verbose_name="与回复的消息间隔多少条")

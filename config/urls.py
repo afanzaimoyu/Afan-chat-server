@@ -24,10 +24,10 @@ from ninja_schema.types import DictStrAny
 
 from chat.controller.chat_controller import ChatController
 from chat.controller.contact_controller import ContactController
-from chat.controller.room_controller import RoomController
+from chat.controller.room_controller import RoomController, RoomPublicController
 from contacts.friend_controller import ContactsController
 from users.apis.login_controller import WeChatLoginApi
-from users.apis.user_controller import UserController
+from users.apis.user_controller import UserController, UserPublicController
 from users.user_tools.afan_ninja import AfanNinjaAPI
 from typing import cast
 from ninja.parser import Parser
@@ -47,10 +47,12 @@ api = AfanNinjaAPI(parser=MyParser())
 api.register_controllers(
     WeChatLoginApi,
     UserController,
+    UserPublicController,
     ContactsController,
     ChatController,
     ContactController,
-    RoomController
+    RoomController,
+    RoomPublicController
 )
 
 urlpatterns = [

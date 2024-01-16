@@ -21,21 +21,21 @@ class JwtAuthMiddleWare(BaseMiddleware):
         return await super().__call__(scope, receive, send)
 
     def get_user(self, scope):
-        parts = dict(scope['headers']).get(b'authorization', b'').split()
+        parts = scope.get("query_string", b"")
         print(parts)
-        if len(parts) == 0 or parts[0] != b"Bearer" or len(parts) != 2:
-            # 未登录
-            return None
-        else:
-            token = parts[1]
-
+        if parts:
+            token = parts.split(b"=")[1]
+            print(token)
             try:
                 user_id = AccessToken(token).payload.get('user_id')
                 return user_id
-
             except Exception as e:
                 print(e)
                 return None
+
+        else:
+            # 未登录
+            return None
 
 
 def JwtAuthMiddleWareStack(inner):

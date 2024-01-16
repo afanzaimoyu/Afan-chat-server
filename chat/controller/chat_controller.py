@@ -1,20 +1,16 @@
-import time
 from typing import List
 
 from django.http import HttpRequest
-from django.utils import timezone
 from ninja import Query
 from ninja_extra import api_controller, http_post, http_get, paginate, http_put
 from ninja_extra.permissions import IsAuthenticated, BasePermission
-from ninja_schema import Schema
 
 from chat.chat_message_resp import ChatMessageRespSchema, MessageReadInfoRespSchema
-from chat.chat_room_resp import PageSizeOutputBase
 from chat.chat_schema import MessageInput, ChatMessageBaseReq, ChatMessageMarkReqSchema, ChatMessageMemberReqSchema, \
     ChatMessageReadInfoReqSchema, ChatMessageReadReqSchema, ChatMessageReadRespSchema
 from chat.models import Message
-from chat.utils.sensitive_word.sensitive_word_filter import MySQLSensitiveWordFilter
-from chat.utils.url_discover.prioritized_url_discover import PrioritizedUrlDiscover
+from chat.todo_message_list import MessagePageInput
+from chatai.gpt_api import GptThread
 from contacts.utils.pagintion import CursorPagination, CursorPaginationResponseSchema
 from users.user_tools.cht_jwt_uthentication import AfanJWTAuth
 
@@ -33,48 +29,49 @@ class IsGroupChatAdministrator(BasePermission):
         return bool(user and user.groups.filter(name__in=['超级管理员', "群聊管理员"]).exists())
 
 
-@api_controller("/chat", tags=["消息模块"], auth=AfanJWTAuth(), permissions=[IsAuthenticated])
+@api_controller("/chat", tags=["消息模块"], auth=AfanJWTAuth())
 class ChatController:
 
     # TODO 频控
-    @http_post("/msg", description="发送消息")
+    @http_post("/msg", description="发送消息", permissions=[IsAuthenticated])
     def send_msg(self, request, msg_input: MessageInput):
         user = request.user
         rsp = msg_input.send_msg(user.id)
         return rsp
 
-    @http_get("/public/msg/page", description="消息列表",
-              response=CursorPaginationResponseSchema[ChatMessageRespSchema])
-    @paginate(CursorPagination, mapper=Message, cursor_column="id")
-    def get_msg_page(self, request, roomId: int):
-        return {"&": {"room_id": roomId}, "~": {"type": Message.MessageTypeEnum.RECALL}}
+    @http_get("/public/msg/page", description="消息列表", auth=None, permissions=None)
+    def get_msg_page(self, msg_page: Query[MessagePageInput]):
+        return msg_page.get_resp()
 
     @http_put("/msg/recall", description="撤回消息", permissions=[IsGroupChatAdministrator])
     def recall_msg(self, request, recall_param: ChatMessageBaseReq):
         uid = request.user.id
         recall_param.recall(uid)
 
-    @http_put("/msg/mark", description="消息标记")
+    @http_put("/msg/mark", description="消息标记", permissions=[IsAuthenticated])
     def setMsgMark(self, request, mark_input: ChatMessageMarkReqSchema):
         user = request.user
         mark_input.set_msg_mark(user.id)
 
-    @http_get("/msg/read/page", description="消息已读未读列表", response=ChatMessageReadRespSchema)
+    @http_get("/msg/read/page", description="消息已读未读列表", permissions=[IsAuthenticated],
+              response=ChatMessageReadRespSchema)
     def get_read_page(self, request, read_page: Query[ChatMessageReadReqSchema]):
         user = request.user
         return read_page.get_read_page(user)
 
-    @http_get("/msg/read", description="获取消息的已读未读总数", response=List[MessageReadInfoRespSchema])
+    @http_get("/msg/read", description="获取消息的已读未读总数", permissions=[IsAuthenticated],
+              response=List[MessageReadInfoRespSchema])
     def get_read_info(self, msg_id: Query[ChatMessageReadInfoReqSchema]):
         return msg_id.get_msg_read_info()
 
-    @http_put("/msg/read", description="消息阅读上报")
+    @http_put("/msg/read", description="消息阅读上报", permissions=[IsAuthenticated])
     def msg_read(self, request, read: ChatMessageMemberReqSchema):
         read.msg_read(request.user)
 
     @http_get("test")
-    def test(self):
-        pass
+    def test(self, message: str):
+        resp = GptThread().get_resp(message)
+        return dict(resp=resp)
         # # long_str = "www.baidu.com"
         # long_str="http://www.jd.com:80"
         # # long_str="http://mallchat.cn"

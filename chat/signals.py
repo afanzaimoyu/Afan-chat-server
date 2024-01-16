@@ -3,10 +3,10 @@ from django.dispatch import receiver, Signal
 
 from chat.chat_message_resp import ChatMessageRespSchema, ChatMsgRecallRespSchema, ChatMessageMarkRespSchema
 from chat.member_resp import WSMemberChange
-from chat.models import RoomFriend, Message, Contact, MessageMark
+from chat.models import RoomFriend, Message, Contact, MessageMark, Room
 from chat.tasks import ws_push_member_change
 from users.signals import distribute_items
-from users.tasks import send_message_all_async
+from users.tasks import send_message_all_async, send_message_async
 
 on_messages = Signal()
 send_add_msg = Signal()
@@ -15,6 +15,7 @@ send_delete_msg = Signal()
 
 @receiver(pre_save, sender=RoomFriend)
 def generate_room_key(sender, instance, **kwargs):
+    print('生成房间key信号')
     if not instance.room_key:
         # 如果 room_key 不存在，生成并设置它
         uid1, uid2 = sorted([int(instance.uid1.id), int(instance.uid2.id)])
@@ -32,53 +33,53 @@ def on_message(sender, **kwargs):
     Returns:
 
     """
-    msg_id = kwargs.get('msg_id')
-    message = Message.objects.get(id=msg_id)
-    room = message.room
-
-    resp_message = ChatMessageRespSchema.from_orm(message).dict(exclude_none=True)
+    print('发送消息更新房间收信箱，并同步给房间成员信箱')
+    message = kwargs.get('message')
+    room = Room.objects.get(id=message.message.roomId)
 
     # 所有房间更新房间最新消息
-    room.refresh_active_time(message.id, message.create_time)
+    room.refresh_active_time(message.message.id)
 
     if room.is_hot_room():
         # 热门群聊推送所有在线的人
         # TODO 如果redis保存了热门群聊 更新热门群聊时间 -redis zset
 
         # 推送所有人
-        message = {
+        resp = {
             "type": "send.message",
             "message": {
                 "type": 4,
-                "data": resp_message
+                "data": message.dict(exclude_none=True)
 
             }
         }
-        send_message_all_async.delay(message)
+        send_message_all_async.delay(resp)
     else:
         member_uid_list = []
         if room.is_room_group():
             # 普通群聊推送所有群成员
             member_uid_list = list(room.roomgroup.groupmember_set.values_list("uid_id", flat=True))
         elif room.is_room_friend():
-            uid1 = room.roomfriend.uid1
-            uid2 = room.roomfriend.uid2
+            uid1 = room.roomfriend.uid1_id
+            uid2 = room.roomfriend.uid2_id
             member_uid_list = [uid1, uid2]
         # 更新所有群成员的会话时间
-        Contact.refresh_or_create_active_time(room.id, member_uid_list, msg_id, message.create_time)
+        Contact.refresh_or_create_active_time(room.id, member_uid_list, message.message.id)
         # TODO 推送房间成员
+        resp = {
+            "type": "send.message",
+            "message": {
+                "type": 4,
+                "data": message.dict(exclude_none=True)
+
+            }
+        }
+        send_message_async.delay(member_uid_list, resp)
 
 
 @receiver(post_save, sender=Message)
 def recall_message(sender, instance, signal, created, update_fields, raw, using, **kwargs):
-    print(sender)
-    print(instance)
-    print(signal)
-    print(created)
-    print(update_fields)
-    print(raw)
-    print(using)
-    print([x for x in kwargs])
+    print('撤回消息信号')
     if instance.type == Message.MessageTypeEnum.RECALL:
         resp_message = ChatMsgRecallRespSchema.from_orm(instance).dict()
         message = {
@@ -95,15 +96,15 @@ def recall_message(sender, instance, signal, created, update_fields, raw, using,
 
 @receiver(post_save, sender=MessageMark)
 def update_or_create_mark(sender, instance, created, **kwargs):
-    add_item_and_push(instance)
+    add_item_and_push(instance, 1)
 
 
 @receiver(post_delete, sender=MessageMark)
 def delete_mark(sender, instance, **kwargs):
-    add_item_and_push(instance)
+    add_item_and_push(instance, 2)
 
 
-def add_item_and_push(instance):
+def add_item_and_push(instance, actType):
     # 如果不是文本消息，直接返回
     # 获取消息被标记的次数。
     # 根据标记的类型和次数，判断是否满足升级条件。如果满足条件，给用户发送一张徽章
@@ -118,7 +119,7 @@ def add_item_and_push(instance):
         uid=instance.user_id,
         msgId=instance.msg_id,
         markType=instance.type,
-        actType=instance.st,
+        actType=actType,
         markCount=instance.mark_count()
     )
     if mark_count >= 10:
@@ -135,8 +136,9 @@ def add_item_and_push(instance):
     send_message_all_async.delay(message)
 
 
-@receiver(send_add_msg, dispatch_uid='send_add_msg')
+@receiver(send_add_msg, dispatch_uid='send_add_msg1')
 def send_add_msgs(sender, **kwargs):
+    print('添加成员信号1')
     member_list = kwargs.get('group_members')
     room_group = kwargs.get('room_group')
     user = kwargs.get('user')
@@ -145,8 +147,9 @@ def send_add_msgs(sender, **kwargs):
     chat_message_req.send_msg(2)
 
 
-@receiver(send_add_msg, dispatch_uid='send_add_msg')
+@receiver(send_add_msg, dispatch_uid='send_add_msg2')
 def send_change_push(sender, **kwargs):
+    print('添加成员信号2')
     member_list = kwargs.get('group_members')
     room_group = kwargs.get('room_group')
     for member in member_list:
@@ -165,11 +168,12 @@ def send_change_push(sender, **kwargs):
 
             }
         }
-        ws_push_member_change.delay(message)
+        ws_push_member_change.delay(message=message, to=member.uid_id)
 
 
 @receiver(send_delete_msg, dispatch_uid='send_delete_msg')
 def send_delete_push(sender, **kwargs):
+    print('删除成员信号')
     uid = kwargs.get('uid')
     member_uid_list = kwargs.get('member_uid_list')
     room_group = kwargs.get('room_group')
@@ -189,7 +193,8 @@ def send_delete_push(sender, **kwargs):
 
             }
         }
-        ws_push_member_change.delay(message, to=member_id)
+        print(message)
+        ws_push_member_change.delay(message=message, to=member_id)
 
 
 def build_group_add_message(room_group, user, room_user_list):

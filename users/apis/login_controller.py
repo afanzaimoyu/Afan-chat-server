@@ -172,20 +172,19 @@ class WeChatLoginApi:
 
     @http_get("test")
     def test(self):
-        current_user = CustomUser.objects.get(id=5)
-        friendships =list( UserFriend.objects.filter(uid=current_user.id)[:2])
-        # print(str(friendships.query))
-
-        # 通过 friendships 获取所有好友的 uid
-        friend_uids = [frend.friend_uid for frend in friendships]
-        print(friend_uids)
-
-        # 使用好友的 uid 查询好友的详细信息
-        friends = CustomUser.objects.filter(id__in=friend_uids)
-        for friend in friends:
-            print(friend.name)
-
-
+        current_user = CustomUser.objects.get(id=6)
+        return get_token(current_user)
+        # friendships = list(UserFriend.objects.filter(uid=current_user.id)[:2])
+        # # print(str(friendships.query))
+        #
+        # # 通过 friendships 获取所有好友的 uid
+        # friend_uids = [frend.friend_uid for frend in friendships]
+        # print(friend_uids)
+        #
+        # # 使用好友的 uid 查询好友的详细信息
+        # friends = CustomUser.objects.filter(id__in=friend_uids)
+        # for friend in friends:
+        #     print(friend.name)
 
 
 def communicates_with_websockets(channel_name, event_type, user=None):

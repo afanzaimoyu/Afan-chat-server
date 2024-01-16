@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from ninja_schema import Schema
 from pydantic import Field
@@ -27,11 +27,11 @@ class IdResp(Schema):
 
 
 class WSMemberChange(Schema):
-    roomId: int
-    uid: int = Field(..., description="变动的uid")
-    changeType: int = Field(..., description="变动类型1.加入2.移除")
-    activeStatus: int = Field(..., description="在线状态1.在线2.离线")
-    lastOptTime: datetime
+    roomId: Optional[int]
+    uid: Optional[int] = Field(..., description="变动的uid")
+    changeType: Optional[int] = Field(..., description="变动类型1.加入2.移除")
+    activeStatus: Optional[int] = Field(..., description="在线状态1.在线2.离线")
+    lastOptTime: Optional[datetime]
 
 
 class ChatMemberRespBase(Schema):

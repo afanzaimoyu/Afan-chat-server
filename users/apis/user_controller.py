@@ -6,14 +6,14 @@ from django.db import connection
 from django.db.models import Q
 from django.http import HttpRequest
 from django.shortcuts import get_object_or_404
-from ninja_extra import NinjaExtraAPI, api_controller, http_get, http_put
+from ninja_extra import NinjaExtraAPI, api_controller, http_get, http_put, http_post
 from ninja_extra.shortcuts import get_object_or_exception
 from ninja_jwt.authentication import JWTAuth
 from ninja_extra.permissions import IsAuthenticated, BasePermission
 from typing import TYPE_CHECKING
 from users.models import ItemConfig, CustomUser, Blacklist
 from users.user_schema.user_schema import UserInfoSchema, ModifyNameInput, BadgesOutSchema, WearingBadgeInput, \
-    BlackInput
+    BlackInput, SummeryInfoResp, SummeryInfoReq, ItemInfoReq
 from users.user_tools.afan_ninja import AfanNinjaAPI
 from users.user_tools.cache_lock import distribute_item
 from users.user_tools.cht_jwt_uthentication import AfanJWTAuth
@@ -36,10 +36,23 @@ class IsGroupChatSuperAdministrator(BasePermission):
         return bool(user and user.groups.filter(name__in=['超级管理员']).exists())
 
 
+@api_controller("/user/public", tags=["User 公共接口"])
+class UserPublicController:
+
+    @http_post("/summary/userInfo/batch", description="用户聚合信息-返回的代表需要刷新的",
+               response=List)
+    def get_summery_user_info(self, info_input: SummeryInfoReq):
+        return info_input.get_summery_user_info()
+
+    @http_post("/badges/batch", description="徽章聚合信息-返回的代表需要刷新的",response=List)
+    def get_item_info(self,info_input:ItemInfoReq):
+        return info_input.get_item_info()
+
+
 @api_controller("/user", tags=["User 类"], auth=AfanJWTAuth(), permissions=[IsAuthenticated])
 class UserController:
 
-    @http_get("userinfo", response=UserInfoSchema, description="获取用户信息")
+    @http_get("userInfo", response=UserInfoSchema, description="获取用户信息")
     def get_user_info(self, request):
         user = request.user
 
@@ -91,8 +104,5 @@ class UserController:
 
     @http_put("/black", description="拉黑用户", permissions=[IsGroupChatSuperAdministrator])
     def black(self, uid: BlackInput):
-
         uid.black_user()
         return {"message": "OK"}
-
-

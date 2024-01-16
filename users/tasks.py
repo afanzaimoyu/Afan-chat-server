@@ -2,6 +2,7 @@ import requests
 from asgiref.sync import async_to_sync, sync_to_async
 from celery import shared_task
 from channels.layers import get_channel_layer
+from django.core.cache import cache
 
 from users.models import CustomUser
 from users.user_schema.ipinfo_schema import Ipinfo
@@ -61,7 +62,23 @@ def send_message_all_async(message):
     # 参考 : https://stackoverflow.com/questions/57595453/getting-django-channel-access-in-celery-task
     try:
         print("发送消息")
+        print(message)
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)("chat_group", message)
+    except Exception as e:
+        print("error", e)
+
+
+@shared_task(ignore_result=True)
+def send_message_async(member_uid_list, message):
+    try:
+        print("发送消息")
+        print(message)
+        for uid in member_uid_list:
+            channel = cache.get(uid)
+            if not channel:
+                continue
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.send)(channel, message)
     except Exception as e:
         print("error", e)

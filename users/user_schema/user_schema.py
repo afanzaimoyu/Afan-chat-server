@@ -1,5 +1,7 @@
-from typing import Any, List
+from datetime import datetime
+from typing import Any, List, Optional
 
+from django.core.cache import cache
 from django.db import transaction
 from ninja_extra import service_resolver
 from ninja_extra.controllers import RouteContext
@@ -8,7 +10,7 @@ from ninja_extra.shortcuts import get_object_or_exception
 from ninja_schema import ModelSchema, Schema, model_validator
 from users.exceptions.chat import Business_Error
 from users.models import CustomUser, ItemConfig, Blacklist
-from pydantic import model_validator as m
+from pydantic import model_validator as m, Field
 
 from users.user_tools.cache_lock import distribute_item
 
@@ -79,7 +81,7 @@ class BadgesOutSchema(Schema):
 
 
 class WearingBadgeInput(UserSchemaMix):
-    item_id: int
+    item_id: int = Field(alias="badgeId")
 
     @model_validator("item_id")
     def validate_item(cls, value_data):
@@ -117,3 +119,71 @@ class BlackInput(Schema):
 
         for ip in set(filter(None, [create_ip, update_ip])):
             Blacklist.objects.create(type=1, target=ip)
+
+
+class SummeryInfoReq(Schema):
+    class InfoReq(Schema):
+        uid: int
+        lastModifyTime: Optional[datetime] = Field(None, description="最后一次更新用户信息时间")
+
+    reqList: List[InfoReq] = Field(..., description="请求列表", max_items=50)
+
+    def get_summery_user_info(self):
+        uid_list = [req.uid for req in self.reqList]
+        users = CustomUser.objects.filter(id__in=uid_list)
+        user_dict = {user.id: user for user in users}
+        summery_info_list = []
+        for req in self.reqList:
+            user = user_dict.get(req.uid)
+            if not user:
+                continue
+            if not req.lastModifyTime or user.update_time > req.lastModifyTime:
+                user.localPlace = user.ip_info.get('updateIpDetail', {}).get('city') if user.ip_info else None
+                user.needRefresh = True
+                resp = SummeryInfoResp.from_orm(user).dict(exclude_none=True)
+            else:
+                resp = SummeryInfoResp(id=user.id, needRefresh=False).dict(exclude_none=True)
+            summery_info_list.append(resp)
+        return summery_info_list
+
+
+class SummeryInfoResp(Schema):
+    uid: int = Field(alias="id")
+    name: Optional[str] = Field(None, description="昵称")
+    avatar: Optional[str] = Field(None, description="头像")
+    localPlace: Optional[str] = Field(None, description="地区")
+    wearingItemId: Optional[int] = Field(None, alias="item_id", description="佩戴的徽章id")
+    needRefresh: bool = Field(True, description="是否需要刷新")
+
+
+class ItemInfoReq(Schema):
+    class ItemInfo(Schema):
+        itemId: int
+        lastModifyTime: Optional[datetime] = Field(None, description="最近一次更新徽章信息时间")
+
+    reqList: List[ItemInfo] = Field(..., description="请求列表", max_items=50)
+
+    def get_item_info(self):
+        item_list = [req.itemId for req in self.reqList]
+        items = ItemConfig.objects.filter(id__in=item_list)
+        item_dict = {item.id: item for item in items}
+        summery_info_list = []
+        for req in self.reqList:
+            item = item_dict.get(req.itemId)
+            if not item:
+                continue
+            if not req.lastModifyTime or item.update_time > req.lastModifyTime:
+                item.last_modify_time = datetime.now()
+                item.needRefresh = True
+                resp = ItemInfoResp.from_orm(item).dict(exclude_none=True)
+            else:
+                resp = ItemInfoResp(id=item.id, needRefresh=False).dict(exclude_none=True)
+            summery_info_list.append(resp)
+        return summery_info_list
+
+
+class ItemInfoResp(Schema):
+    itemId: int = Field(alias="id")
+    img: Optional[str] = Field(None, description="徽章图片")
+    describe: Optional[str] = Field(None, description="徽章描述")
+    needRefresh: Optional[bool] = Field(True, description="是否需要刷新")

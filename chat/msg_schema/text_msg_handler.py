@@ -33,7 +33,7 @@ class TextMsgHandler(AbstractMsgHandler):
             req = self.req_schema(**body)
         except ValidationError as e:
             loc = ','.join(exc.get("loc")[0] for exc in e.errors())
-            raise Business_Error(detail=f"{loc} 参数校验错误", code=-2)
+            raise Business_Error(detail=f"参数{loc} 校验错误", code=-2)
         # 回复消息校验
         if req.replyMsgId:
             reply_msg = get_object_or_exception(klass=Message, error_message="回复消息不存在",

@@ -1,0 +1,66 @@
+'https://plantuml.com/use-case-diagram
+
+@startuml
+
+left to right direction
+skinparam packageStyle rectangle
+
+package "群聊系统" {
+  usecase "查看大群聊消息" as UC1
+  actor "游客" as Guest
+  UC1 - Guest
+
+  usecase "佩戴徽章" as UC2
+  usecase "改名" as UC3
+  usecase "发消息" as UC4
+  usecase "接受消息" as UC5
+  usecase "@成员" as UC6
+  usecase "撤回消息" as UC7
+  usecase "回复消息" as UC8
+  usecase "消息标记" as UC9
+  usecase "拉群" as UC10
+  usecase "添加好友" as UC11
+  usecase "好友聊天" as UC12
+
+  actor "已注册用户" as RegisteredUser
+  UC2 - RegisteredUser
+  UC3 - RegisteredUser
+  UC4 - RegisteredUser
+  UC5 - RegisteredUser
+  UC6 - RegisteredUser
+  UC7 - RegisteredUser
+  UC8 - RegisteredUser
+  UC9 - RegisteredUser
+  UC10 - RegisteredUser
+  UC11 - RegisteredUser
+  UC12 - RegisteredUser
+
+  usecase "设置群管理" as UC13
+  actor "群聊管理员" as GroupAdmin
+  UC13 - GroupAdmin
+
+  usecase "拉黑用户" as UC14
+  actor "超级管理员" as SuperAdmin
+  UC14 - SuperAdmin
+}
+
+SuperAdmin --> UC14 : 拉黑用户
+SuperAdmin --> UC13 : 设置群管理
+
+GroupAdmin --> UC13 : 设置群管理
+
+RegisteredUser --> UC2 : 佩戴徽章
+RegisteredUser --> UC3 : 改名
+RegisteredUser --> UC4 : 发消息
+RegisteredUser --> UC5 : 接受消息
+RegisteredUser --> UC6 : @成员
+RegisteredUser --> UC7 : 撤回消息
+RegisteredUser --> UC8 : 回复消息
+RegisteredUser --> UC9 : 消息标记
+RegisteredUser --> UC10 : 拉群
+RegisteredUser --> UC11 : 添加好友
+RegisteredUser --> UC12 : 好友聊天
+
+Guest --> UC1 : 查看大群聊消息
+
+@enduml

@@ -1,3 +1,4 @@
+import asyncio
 from pprint import pprint
 
 from asgiref.sync import async_to_sync
@@ -13,6 +14,9 @@ from users.user_tools.tools import generate_login_code, get_token
 
 class ChatConsumer(JsonWebsocketConsumer):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.heartbeat_timeout = None
     def connect(self):
         print("WebSocket 连接")
         pprint(self.scope)
@@ -25,6 +29,9 @@ class ChatConsumer(JsonWebsocketConsumer):
         if self.scope['user']:
             self.login_success()
             print(2)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        self.heartbeat_timeout = loop.call_later(30, self.disconnect, 4000)
 
     def disconnect(self, code):
         print("WebSocket 断开")
@@ -41,7 +48,9 @@ class ChatConsumer(JsonWebsocketConsumer):
             case 1:
                 self.handle_login_request()
             case 2:
-                self.send_json({"data": {"message": "心跳"}})
+                if self.heartbeat_timeout is not None:
+                    self.heartbeat_timeout.cancel()
+                self.heartbeat_timeout = asyncio.get_event_loop().call_later(30, self.disconnect, 4000)
             case 3:
                 self.login_authentication()
             case _:
@@ -61,13 +70,13 @@ class ChatConsumer(JsonWebsocketConsumer):
 
         # 推送成功消息
         self.send_json({
-            "type": "3",
+            "type": 3,
             "data": {
                 "uid": user.id,
-                "nickname": user.name,
+                "name": user.name,
                 "avatar": user.avatar,
                 'power': is_admin_or_group_admin,
-                "token": user_token,
+                "token": user_token.get('access'),
             }
         })
         # 用户成功上线事件
@@ -88,7 +97,7 @@ class ChatConsumer(JsonWebsocketConsumer):
         self.send_json({
             "type": 1,
             "data": {
-                "qr_code_url": wx_mp_qr_code_ticket
+                "loginUrl": wx_mp_qr_code_ticket
             }
         })
 

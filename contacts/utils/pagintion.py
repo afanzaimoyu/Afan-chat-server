@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from functools import wraps
-from typing import Optional, List, Tuple, Generic, TypeVar
+from typing import Optional, List, Tuple, Generic, TypeVar, Union
 from django.db.models import Model, Q
 from django.http import HttpRequest
 from ninja import Schema
@@ -61,12 +61,12 @@ class NormalPagination(PaginationBase):
 
 class PageSizeInputBase(Schema):
     cursor: Optional[int] = 0
-    pagesize: int = Field(100, lt=200)
+    pageSize: int = Field(100, lt=200)
 
 
 class PageSizeOutputBase(Schema):
     cursor: Optional[str] = None
-    is_last: bool = True
+    isLast: bool = True
     list: List[T]
 
 
@@ -76,11 +76,11 @@ class CursorPaginationResponseSchema(PageSizeOutputBase, Generic[T]):
 
 class CursorPagination(PaginationBase):
     class Input(Schema):
-        cursor: Optional[int] = 0
-        pagesize: int = Field(100, lt=200)
+        cursor: Union[Optional[int], Optional[str]] = 0
+        pageSize: int = Field(100, lt=200)
 
     def __init__(
-            self, mapper: Type[Model], cursor_column: str, select: str = None, **kwargs: Any
+            self, mapper: Type[Model], cursor_column: str, select: str = None,order=None, **kwargs: Any
     ) -> None:
         """
 
@@ -93,13 +93,14 @@ class CursorPagination(PaginationBase):
         self.mapper = mapper
         self.cursor_column = cursor_column
         self.select = select
+        self.order = order
         super().__init__(**kwargs)
 
     items_attribute: str = "list"
 
     def paginate_queryset(self, wrapper_consumer, pagination: Input, **params):
-        cursor = pagination.cursor
-        page_size = pagination.pagesize
+        cursor = int(pagination.cursor) if pagination.cursor else 0
+        page_size = pagination.pageSize
 
         query_and = {self.cursor_column + '__gt': cursor}
         query_not = {}
@@ -117,10 +118,11 @@ class CursorPagination(PaginationBase):
         # 获取满足条件的记录
         if self.select:
             queryset = self.mapper.objects.filter(Q(**query_and) & ~Q(**query_not) | Q(**query_or)).select_related(
-                self.select).order_by(self.cursor_column)[
+                self.select).order_by(self.order)[
                        :page_size + 1]
         else:
-            queryset = self.mapper.objects.filter(Q(**query_and) & ~Q(**query_not) | Q(**query_or)).order_by(self.cursor_column)[:page_size + 1]
+            queryset = self.mapper.objects.filter(Q(**query_and) & ~Q(**query_not) | Q(**query_or)).order_by(
+                self.order)[:page_size + 1]
         print(queryset.query)
         if queryset:
             # 获取实际返回的记录
@@ -133,11 +135,11 @@ class CursorPagination(PaginationBase):
             next_cursor = str(getattr(records[-1], self.cursor_column)) if len(records) == page_size + 1 else None
 
             # 是否最后一页判断
-            is_last = len(records) != page_size + 1
+            isLast = len(records) != page_size + 1
             return OrderedDict(
                 [
                     ("list", display_records),
-                    ("is_last", is_last),
+                    ("isLast", isLast),
                     ("cursor", next_cursor),
                 ]
             )
