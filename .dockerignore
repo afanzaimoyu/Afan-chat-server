@@ -1,0 +1,7 @@
+.editorconfig
+.gitattributes
+.gitignore
+.idea
+.venv/
+.git
+.envs/

@@ -1,0 +1,50 @@
+version: '3'
+
+volumes: # 自定义数据卷，位于宿主机/var/lib/docker/volumes内
+  project_db_vol: {} # 定义数据卷同步容器内mysql数据
+  project_redis_vol: {} # 定义数据卷同步容器内redis数据
+
+services:
+  redis:
+    image: redis:latest
+    command: redis-server /etc/redis/redis.conf # 容器启动后启动redis服务器
+    container_name: project_redis
+    #    volumes:
+    #      - ./compose/local/redis/redis.conf:/etc/redis/redis.conf # 挂载redis配置文件
+    ports:
+      - "6379:6379"
+    restart: always # always表容器运行发生错误时一直重启
+
+  db: # 数据库服务的名称
+    image: mysql:latest # 指定镜像
+    build: # 指定构建镜像的上下文路径
+      context: . # 指定了构建上下文的路径，通常是 Dockerfile 所在的目录。
+      dockerfile: ./compose/production/mysql/Dockerfile # 指定了 Dockerfile 的路径。
+    container_name: project_production_postgres # 指定了容器的名称。
+    volumes: # 定义了两个数据卷
+      - project_db_vol:/var/lib/mysql:rw
+      - ./compose/local/mysql/conf/my.cnf:/etc/mysql/my.cnf # 挂载配置文件
+    env_file: # 指定了环境变量配置文件的路径。
+      - ./.envs/.local
+    ports: # 指定了端口映射关系。
+      - '3306:3306'
+    restart: always # 指定了容器的重启策略。
+
+  django: &django  # &django 定义了一个锚点，*django 引用了这个锚点
+    build:
+      context: .
+      dockerfile: ./compose/production/django/Dockerfile
+    container_name: afan_chat_server_django
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - ./.envs/.local
+    command: /start
+
+
+
+  celeryworker:
+    <<: *django
+    image: projectmodel_production_celeryworker
+    command: /start-celeryworker
