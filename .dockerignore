@@ -4,4 +4,4 @@
 .idea
 .venv/
 .git
-.envs/
+#.envs/
