@@ -10,13 +10,16 @@ from users.models import CustomUser
 
 
 class JwtAuthMiddleWare(BaseMiddleware):
-    # TODO: 如果nginx反代 如何获取真实地址
+    # 如果nginx反代 如何获取真实地址
 
     async def __call__(self, scope, receive, send):
 
         user = await sync_to_async(self.get_user)(scope)
 
         scope["user"] = user
+
+        ip = await sync_to_async(self.get_real_ip)(scope)
+        scope['ip'] = ip
 
         return await super().__call__(scope, receive, send)
 
@@ -36,6 +39,14 @@ class JwtAuthMiddleWare(BaseMiddleware):
         else:
             # 未登录
             return None
+
+    def get_real_ip(self, scope):
+        headers = dict(scope.get('headers', []))
+        real_ip = headers.get(b'x-real-ip', b'').decode('utf-8')
+        if not real_ip:
+            x_forwarded_for = headers.get(b'x-forwarded-for', b'').decode('utf-8')
+            real_ip = x_forwarded_for.split(',')[0].strip()
+        return real_ip
 
 
 def JwtAuthMiddleWareStack(inner):

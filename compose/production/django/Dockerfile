@@ -5,6 +5,11 @@ LABEL maintainer="flz"
 #RUN apt-get update && apt-get install --no-install-recommends -y \
 #  sudo git bash-completion nano ssh
 # Python 'run' stage
+RUN echo "Types: deb" > /etc/apt/sources.list.d/debian.sources \
+    && echo "URIs: https://mirrors.tuna.tsinghua.edu.cn/debian" >> /etc/apt/sources.list.d/debian.sources \
+    && echo "Suites: bookworm bookworm-updates" >> /etc/apt/sources.list.d/debian.sources \
+    && echo "Components: main" >> /etc/apt/sources.list.d/debian.sources
+RUN apt update && apt -y install ncat
 
 ARG BUILD_ENVIRONMENT=production
 ARG APP_HOME=/app
@@ -17,9 +22,10 @@ ENV BUILD_ENV ${BUILD_ENVIRONMENT}
 
 WORKDIR ${APP_HOME}
 
-RUN pip install -U pip && pip install poetry \
-  && poetry config virtualenvs.create false \
-  && poetry install --no-interaction --no-ansi
+RUN pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -U pip \
+    && pip install -i https://pypi.tuna.tsinghua.edu.cn/simple poetry \
+    && poetry config virtualenvs.create false \
+    && poetry install --no-interaction --no-ansi
 
 #COPY  ./compose/production/django/entrypoint /entrypoint
 #RUN sed -i 's/\r$//g' /entrypoint

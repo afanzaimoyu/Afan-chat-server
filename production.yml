@@ -25,10 +25,11 @@ services:
 
   redis:
     image: redis:latest
-    command: redis-server /etc/redis/redis.conf # 容器启动后启动redis服务器
+    # command: redis-server /etc/redis/redis.conf # 容器启动后启动redis服务器
+    command: redis-server
     container_name: project_redis
-    volumes:
-      - ./compose/production/redis/redis.conf:/etc/redis/redis.conf # 挂载redis配置文件
+    # volumes:
+    #   - ./compose/production/redis/redis.conf:/etc/redis/redis.conf # 挂载redis配置文件
     ports:
       - "6379:6379"
     restart: always # always表容器运行发生错误时一直重启

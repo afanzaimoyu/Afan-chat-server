@@ -17,6 +17,7 @@ class ChatConsumer(JsonWebsocketConsumer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.heartbeat_timeout = None
+
     def connect(self):
         print("WebSocket 连接")
         pprint(self.scope)
@@ -26,19 +27,25 @@ class ChatConsumer(JsonWebsocketConsumer):
         self.accept()
         print(self.channel_name)
         print(self.scope['user'])
+        if self.scope['ip'] is None:
+            self.disconnect(4000)
+
         if self.scope['user']:
             self.login_success()
             print(2)
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        self.heartbeat_timeout = loop.call_later(30, self.disconnect, 4000)
+        self.heartbeat_timeout = loop.call_later(30, self.bye, 4000)
+
+    def bye(self, code):
+        # 删除 channels 与 uid 的关联
+
+        cache.delete(self.scope['user'])
+        user_offline_signal.send(sender=self.__class__, uid=self.scope['user'])
+        self.disconnect(code)
 
     def disconnect(self, code):
         print("WebSocket 断开")
-        # 删除 channels 与 uid 的关联
-        cache.delete(self.scope['user'])
-        user_offline_signal.send(sender=self.__class__, uid=self.scope['user'])
-
         async_to_sync(self.channel_layer.group_discard)("chat_group", self.channel_name)
 
         self.close()
@@ -50,7 +57,7 @@ class ChatConsumer(JsonWebsocketConsumer):
             case 2:
                 if self.heartbeat_timeout is not None:
                     self.heartbeat_timeout.cancel()
-                self.heartbeat_timeout = asyncio.get_event_loop().call_later(30, self.disconnect, 4000)
+                self.heartbeat_timeout = asyncio.get_event_loop().call_later(30, self.bye, 4000)
             case 3:
                 self.login_authentication()
             case _:
@@ -81,11 +88,11 @@ class ChatConsumer(JsonWebsocketConsumer):
         })
         # 用户成功上线事件
 
-        user_online_signal.send(sender=self.__class__, user=user, ip=self.scope['client'][0])
+        user_online_signal.send(sender=self.__class__, user=user, ip=self.scope['ip'])
 
     def handle_login_request(self):
         # 生成唯一的登录码并与通道关联
-        login_code = generate_login_code(self.scope['client'][0])
+        login_code = generate_login_code(self.scope['ip'])
         expire_seconds = env.int("expire_seconds")
         cache.set(login_code, self.channel_name, expire_seconds)
 
