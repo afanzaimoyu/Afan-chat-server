@@ -158,7 +158,7 @@ class ChatRoomCursorInputSchema(Schema):
                 type=room.type,
                 hot_Flag=room.hot_flag,
                 lastMsgId=room.last_msg_id,
-                activeTime=int(datetime.timestamp(room.active_time))
+                activeTime=int(datetime.timestamp(room.active_time)) if room.active_time else None
             )
             if room.is_room_group():
                 room_base_info.name = room.roomgroup.name

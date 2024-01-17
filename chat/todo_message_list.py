@@ -49,11 +49,12 @@ class MessagePageInput(Schema):
     def get_resp(self):
         resp = self.paginate_queryset()
         resp_list = []
-        for message in resp.get('list', []):
-            if not message:
-                continue
-            msgHandler: AbstractMsgHandler = MsgHandlerFactory.get_strategy_no_null(message.type)()
-            body = msgHandler.show_msg(message)
-            resp_list.append(ChatMessageRespSchema.get_resp(body, message).dict(exclude_none=True))
-        resp['list'] = resp_list
+        if resp:
+            for message in resp.get('list', []):
+                if not message:
+                    continue
+                msgHandler: AbstractMsgHandler = MsgHandlerFactory.get_strategy_no_null(message.type)()
+                body = msgHandler.show_msg(message)
+                resp_list.append(ChatMessageRespSchema.get_resp(body, message).dict(exclude_none=True))
+            resp['list'] = resp_list
         return resp
