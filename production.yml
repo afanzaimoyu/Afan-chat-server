@@ -5,6 +5,24 @@ volumes: # 自定义数据卷，位于宿主机/var/lib/docker/volumes内
   project_redis_vol: {} # 定义数据卷同步容器内redis数据
 
 services:
+  nginx:
+    build:
+      context: .
+      dockerfile: ./compose/production/nginx/Dockerfile
+    ports:
+      - "80:80"
+      - "443:443"
+    expose:
+      - "80"
+    volumes:
+      - ./compose/production/nginx/nginx.conf:/etc/nginx/conf.d/nginx.conf # 挂载nginx配置文件
+      - ./compose/production/nginx/ssl:/usr/share/nginx/ssl # 挂载ssl证书目录
+      - ./compose/production/nginx/log:/var/log/nginx # 挂载日志
+    depends_on:
+        - django
+    restart: always
+
+
   redis:
     image: redis:latest
     command: redis-server /etc/redis/redis.conf # 容器启动后启动redis服务器
@@ -33,21 +51,16 @@ services:
       context: .
       dockerfile: ./compose/production/django/Dockerfile
     image: afan_chat_server_django
-    container_name: afan_chat_server_django
     depends_on:
       - db
       - redis
     env_file:
       - ./.envs/.local
-    ports: # 指定了端口映射关系。
-      - '8000:8000'
     command: /start
-
-
 
   celeryworker:
     <<: *django
-    image: projectmodel_production_celeryworker
+    image: afan_chat_server_celery_worker
     command: /start-celeryworker
-    ports:
-      - '8001:8000'
+
+
