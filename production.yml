@@ -9,15 +9,15 @@ services:
     image: redis:latest
     command: redis-server /etc/redis/redis.conf # 容器启动后启动redis服务器
     container_name: project_redis
-    #    volumes:
-    #      - ./compose/local/redis/redis.conf:/etc/redis/redis.conf # 挂载redis配置文件
+    volumes:
+      - ./compose/production/redis/redis.conf:/etc/redis/redis.conf # 挂载redis配置文件
     ports:
       - "6379:6379"
     restart: always # always表容器运行发生错误时一直重启
 
   db: # 数据库服务的名称
     image: mysql:latest # 指定镜像
-    container_name: project_production_postgres # 指定了容器的名称。
+    container_name: project_production_mysql # 指定了容器的名称。
     volumes: # 定义了两个数据卷
       - project_db_vol:/var/lib/mysql:rw
       - ./compose/production/mysql/conf/my.cnf:/etc/mysql/my.cnf # 挂载配置文件
@@ -32,12 +32,15 @@ services:
     build:
       context: .
       dockerfile: ./compose/production/django/Dockerfile
+    image: afan_chat_server_django
     container_name: afan_chat_server_django
     depends_on:
       - db
       - redis
     env_file:
       - ./.envs/.local
+    ports: # 指定了端口映射关系。
+      - '8000:8000'
     command: /start
 
 
@@ -46,3 +49,5 @@ services:
     <<: *django
     image: projectmodel_production_celeryworker
     command: /start-celeryworker
+    ports:
+      - '8001:8000'

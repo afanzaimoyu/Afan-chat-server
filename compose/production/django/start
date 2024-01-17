@@ -4,6 +4,11 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
+
+while ! nc -z db 3306 ; do
+    echo "等待MySQL服务器"
+    sleep 3
+done
 python /app/manage.py migrate
 python /app/manage.py init_data
 python /app/manage.py init_keyword
