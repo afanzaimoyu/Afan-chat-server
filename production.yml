@@ -15,10 +15,9 @@ services:
     expose:
       - "80"
     volumes:
-      - ./compose/production/nginx/default.conf:/etc/nginx/conf.d/default.conf # 挂载nginx配置文件
-      - ./compose/production/nginx/ssl:/usr/share/nginx/ssl # 挂载ssl证书目录
       - ./compose/production/nginx/log:/var/log/nginx # 挂载日志
     depends_on:
+        - minio
         - django
     restart: always
 
@@ -28,8 +27,10 @@ services:
     # command: redis-server /etc/redis/redis.conf # 容器启动后启动redis服务器
     command: redis-server
     container_name: project_redis
-    # volumes:
-    #   - ./compose/production/redis/redis.conf:/etc/redis/redis.conf # 挂载redis配置文件
+    volumes:
+      - ./compose/production/redis/redis.conf:/etc/redis/redis.conf # 挂载redis配置文件
+      - project_redis_vol:/data # 挂载数据卷
+      - ./compose/production/redis/logs:/var/log/redis # 挂载日志
     ports:
       - "6379:6379"
     restart: always # always表容器运行发生错误时一直重启
@@ -45,7 +46,21 @@ services:
     ports: # 指定了端口映射关系。
       - '3306:3306'
     restart: always # 指定了容器的重启策略。
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
+  minio:
+    image: quay.io/minio/minio:RELEASE.2022-08-02T23-59-16Z
+    container_name: project_minio
+    volumes:
+      - ./compose/production/minio/data:/data
+      - ./compose/production/minio/config:/root/.minio
+    ports:
+      - "9000:9000" # api 端口
+      - "9001:9001" # 控制台端口
+    env_file:
+      - ./.envs/.minIO
+    command: server --address ':9000' --console-address ':9001' /data  # 指定容器中的目录 /data
+    privileged: true
 
   django: &django  # &django 定义了一个锚点，*django 引用了这个锚点
     build:
