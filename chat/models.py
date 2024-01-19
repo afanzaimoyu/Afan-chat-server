@@ -114,7 +114,7 @@ class GroupMember(models.Model):
     group = models.ForeignKey(RoomGroup, on_delete=models.CASCADE, verbose_name="群组")
     uid = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='group_member_user',
                             verbose_name='成员uid')
-    role = models.IntegerField(verbose_name="成员角色 1群主 2管理员 3普通成员")
+    role = models.IntegerField(verbose_name="成员角色 1群主 2管理员 3普通成员", choices=Role.choices)
     create_time = models.DateTimeField(auto_now_add=True)
     update_time = models.DateTimeField(auto_now=True)
 

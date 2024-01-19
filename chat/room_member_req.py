@@ -212,7 +212,7 @@ class AdminAddReq(Schema):
             if room_group.groupmember_set.get(uid_id=user.id).role != GroupMember.Role.GROUP_LEADER:
                 raise Business_Error(detail="没有操作权限", code=0)
             elif len(
-                    room_group.groupmember_set.filter(uid_id__in=self.uidList).values_list('uid_id', flat=True)) != len(
+                room_group.groupmember_set.filter(uid_id__in=self.uidList).values_list('uid_id', flat=True)) != len(
                 self.uidList):
                 raise Business_Error(detail="用户不在群中", code=0)
             return room_group
@@ -287,7 +287,7 @@ class MemberReq(ChatRoomCursorInputSchema):
             'uid__last_login')[:1]
         records = room_group.groupmember_set.filter(uid__last_login__lte=Subquery(subquery),
                                                     uid__is_active=1).order_by(
-            '-uid__last_login')[:self.pageSize + 1].values('uid__id', 'uid__last_login', 'uid__is_active')
+            '-uid__last_login')[:self.pageSize + 1].values('uid__id', 'uid__last_login', 'uid__is_active', 'role')
 
         records_list = list(records) if records.exists() else []
         if len(records) < self.pageSize + 1 and records_list[-1].get('uid__is_active') != 2:
@@ -295,45 +295,45 @@ class MemberReq(ChatRoomCursorInputSchema):
                 uid__last_login__lte=records_list[-1].get('uid__last_login'),
                 uid__is_active=2).order_by(
                 '-uid__last_login')[
-                              :self.pageSize - len(records) + 1].values('uid__id', 'uid__last_login', 'uid__is_active')
+                              :self.pageSize - len(records) + 1].values('uid__id', 'uid__last_login', 'uid__is_active', 'role')
             records_list.extend(list(offline_records))
         return self.build_queryset(records_list, 'uid__is_active', 'uid__last_login')
 
     def get_normal_group_users_query(self, room_group, is_online, time_str):
         records = room_group.groupmember_set.filter(uid__last_login__lte=time_str,
                                                     uid__is_active=is_online).order_by('-uid__last_login')[
-                  :self.pageSize + 1].values('uid__id', 'uid__last_login', 'uid__is_active')
+                  :self.pageSize + 1].values('uid__id', 'uid__last_login', 'uid__is_active', 'role')
         records_list = list(records) if records.exists() else []
         if len(records) < self.pageSize + 1 and is_online != 2:
             offline_records = room_group.groupmember_set.filter(uid__last_login__lte=time_str,
                                                                 uid__is_active=2).order_by(
                 '-uid__last_login')[
-                              :self.pageSize - len(records) + 1].values('uid__id', 'uid__last_login', 'uid__is_active')
+                              :self.pageSize - len(records) + 1].values('uid__id', 'uid__last_login', 'uid__is_active', 'role')
             records_list.extend(list(offline_records))
         return self.build_queryset(records_list, 'uid__is_active', 'uid__last_login')
 
     def get_hot_group_users_query(self, is_online, time_str):
         records = CustomUser.objects.filter(last_login__lte=time_str, is_active=is_online).order_by('-last_login')[
-                  :self.pageSize + 1].values('last_login', 'is_active', 'id')
+                  :self.pageSize + 1].values('last_login', 'is_active', 'id', 'is_superuser')
         records_list = list(records) if records.exists() else []
         if len(records) < self.pageSize + 1 and is_online != 2:
             offline_records = CustomUser.objects.filter(last_login__lte=time_str, is_active=2).order_by(
                 '-last_login')[
-                              :self.pageSize - len(records) + 1].values('last_login', 'is_active', 'id')
+                              :self.pageSize - len(records) + 1].values('last_login', 'is_active', 'id', 'is_superuser')
             records_list.extend(list(offline_records))
         return self.build_queryset(records_list, 'is_active', 'last_login')
 
     def get_hot_group_users_first_query(self):
         subquery = CustomUser.objects.filter(is_active=1).order_by('-last_login').values('last_login')[:1]
         records = CustomUser.objects.filter(last_login__lte=Subquery(subquery), is_active=1).order_by(
-            '-last_login')[:self.pageSize + 1].values('last_login', 'is_active', 'id')
+            '-last_login')[:self.pageSize + 1].values('last_login', 'is_active', 'id', 'is_superuser')
         records_list = list(records) if records.exists() else []
         records_list = list(records)
         if len(records) < self.pageSize + 1 and records_list[-1].get('is_active') != 2:
             offline_records = CustomUser.objects.filter(last_login__lte=records_list[-1].get('last_login'),
                                                         is_active=2).order_by(
                 '-last_login')[
-                              :self.pageSize - len(records) + 1].values('last_login', 'is_active', 'id')
+                              :self.pageSize - len(records) + 1].values('last_login', 'is_active', 'id', 'is_superuser')
             records_list.extend(list(offline_records))
         return self.build_queryset(records_list, 'is_active', 'last_login')
 

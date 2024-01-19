@@ -38,6 +38,7 @@ class ChatMemberRespBase(Schema):
     uid: int = Field(alias="id")
     activeStatus: int = Field(alias="is_active")
     lastOptTime: str = Field(alias="last_login")
+    roleId: int = Field(alias="role")
 
     @pydantic_model_validator(mode="before")
     def extract_name(cls, values: dict):
@@ -45,6 +46,8 @@ class ChatMemberRespBase(Schema):
         for key, value in values.items():
             if isinstance(value, datetime):
                 new_data[key.replace('uid__', '')] = str(value.timestamp())
+            elif key == 'is_superuser':
+                new_data['role'] = value if value else 3
             else:
                 new_data[key.replace('uid__', '')] = value
         return new_data
