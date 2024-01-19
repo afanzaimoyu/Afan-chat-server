@@ -1,12 +1,26 @@
 # filters.py
+import threading
 
-from django.db import models
-from django.db.models import Field
 from ahocorasick import Automaton
 
 from chat.models import SensitiveWord
 
 
+class Singleton(object):
+    _instance_lock = threading.Lock()
+
+    def __init__(self, cls):
+        self._cls = cls
+        self.unique_instance = None
+
+    def __call__(self, *args, **kwargs):
+        with self._instance_lock:
+            if self.unique_instance is None:
+                self.unique_instance = self._cls(*args, **kwargs)
+        return self.unique_instance
+
+
+@Singleton
 class MySQLSensitiveWordFilter:
     def __init__(self):
         self.automaton = Automaton()
@@ -43,13 +57,3 @@ class MySQLSensitiveWordFilter:
             start_index = end_index - len_word
             text = text.replace(text[start_index:end_index], '*' * len_word)
         return text
-
-# 使用例子
-# filter_instance = MySQLSensitiveWordFilter()
-#
-# text = "这是一个包含敏感词的文本，敏感词1和敏感词3都在这里。"
-# if filter_instance.has_sensitive_word(text):
-#     filtered_text = filter_instance.filter(text)
-#     print(filtered_text)
-# else:
-#     print("文本中没有敏感词")
