@@ -16,7 +16,8 @@ class ContactsController:
     @http_get("/check", description="批量判断是否是自己的好友")
     def check(self, request, uid_list: CheckUserInput):
         user = request.user
-        friend_uids = UserFriend.objects.filter(uid=user.id).values_list('friend_id', flat=True)
+        friend_uids = UserFriend.objects.filter(uid=user.id, delete_status=UserFriend.Delete.NORMAL).values_list(
+            'friend_id', flat=True)
 
         are_friends_list = uid_list.are_friends_list(friend_uids)
 
@@ -53,7 +54,7 @@ class ContactsController:
         return True
 
     @http_delete(description="删除好友")
-    def delete_friend(self, request, uid: Query[DeleteFriendInput]):
+    def delete_friend(self, request, uid: DeleteFriendInput):
         user = request.user
         uid.delete_friend(user)
 
@@ -64,4 +65,4 @@ class ContactsController:
     def friend_list(self, request):
         uid = request.user
 
-        return {"&": {"uid": uid}}
+        return {"&": {"uid": uid}, "~": {"delete_status": UserFriend.Delete.DELETED}}

@@ -15,11 +15,11 @@ from users.models import CustomUser
 
 
 class CheckUserInput(Schema):
-    uidlist: List[int]
+    uidList: List[int]
 
     def are_friends_list(self, friend_uids):
         are_friends_list = []
-        for uid in self.uidlist:
+        for uid in self.uidList:
             is_friend = uid in friend_uids
             are_friends_list.append({"uid": uid, "isFriend": is_friend})
         return are_friends_list
@@ -73,9 +73,9 @@ class CustomUserFriend(Schema):
 
 
 class DeleteFriendInput(Schema):
-    uid: int
+    targetUid: int
 
-    @model_validator("uid")
+    @model_validator("targetUid")
     def validate_uid(cls, value_data):
         context: RouteContext = service_resolver(RouteContext)
         user = context.request.user
@@ -84,21 +84,22 @@ class DeleteFriendInput(Schema):
             raise Business_Error(detail="不能删除自己", code=0)
 
         cls.queryset = UserFriend.objects.filter(Q(friend_id=value_data, uid=user) | Q(uid=value_data, friend_id=user))
-        print(cls.queryset.values_list("delete_status").first()[0])
 
         if not cls.queryset.exists():
             raise Business_Error(detail=f"{user.id}, {value_data}没有好友关系", code=0)
 
         if cls.queryset.values_list("delete_status").first()[0] == UserFriend.Delete.DELETED:
             raise Business_Error(detail=f"{value_data}已经删除了", code=0)
+        return value_data
 
+    @transaction.atomic
     def delete_friend(self, user):
-        # 禁用房间
+        # 删除好友 禁用房间
         self.queryset.update(delete_status=UserFriend.Delete.DELETED)
-
-        # assert 好友数量不对
-        # 获得roomkey 逻辑删除房间
-        # disable_friend_room(user.id,self.uid)
+        # 获得roomkey 删除房间
+        print(user.id, self.targetUid)
+        uid_1 = user.id if user.id < self.targetUid else self.targetUid
+        Room.objects.get(roomfriend__uid1_id=uid_1).delete()
 
 
 class ApproveInput(Schema):

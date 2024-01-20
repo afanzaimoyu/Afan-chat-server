@@ -2,6 +2,7 @@ import hashlib
 import secrets
 import time
 import uuid
+from datetime import datetime
 from typing import cast, Dict
 
 from django.contrib.auth.base_user import AbstractBaseUser
@@ -37,3 +38,11 @@ def get_token(user: AbstractBaseUser) -> Dict:
     values["refresh"] = str(refresh)
     values["access"] = str(refresh.access_token)
     return values
+
+
+def timestamp_to_datetime(time_stamp: str):
+    return datetime.fromtimestamp(int(time_stamp) / 1000)
+
+
+def datetime_to_timestamp(date_time: datetime):
+    return int(datetime.timestamp(date_time) * 1000)

@@ -14,6 +14,7 @@ from chat.models import RoomGroup, GroupMember, Room
 from chat.signals import send_add_msg, send_delete_msg
 from users.exceptions.chat import Business_Error
 from users.models import CustomUser
+from users.user_tools.tools import timestamp_to_datetime, datetime_to_timestamp
 
 
 class IdsInput(Schema):
@@ -260,7 +261,7 @@ class MemberReq(ChatRoomCursorInputSchema):
         if self.cursor and self.cursor != '0':
             cursor_parts = self.cursor.split('_')
             is_online = int(cursor_parts[0])
-            time_str = datetime.fromtimestamp(float(cursor_parts[1]), tz=timezone.utc)
+            time_str = timestamp_to_datetime(cursor_parts[1])
             print(time_str)
             return is_online, time_str
 
@@ -340,7 +341,7 @@ class MemberReq(ChatRoomCursorInputSchema):
     def build_queryset(self, records, is_active, cursor_column='id'):
 
         # 计算下一页的游标
-        next_cursor = str(records[-1].get(is_active)) + '_' + str(records[-1].get(cursor_column).timestamp()) if len(
+        next_cursor = str(records[-1].get(is_active)) + '_' + str(datetime_to_timestamp(records[-1].get(cursor_column))) if len(
             records) == self.pageSize + 1 else None
         # 是否最后一页判断
         isLast = len(records) != self.pageSize + 1

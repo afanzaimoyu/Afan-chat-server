@@ -10,6 +10,7 @@ from chat.models import Room, Contact, Message
 from chat.msg_schema.abs_msg_handler import AbstractMsgHandler
 from chat.msg_schema.msg_handler_factory import MsgHandlerFactory
 from users.models import CustomUser
+from users.user_tools.tools import datetime_to_timestamp
 
 T = TypeVar("T")
 
@@ -158,7 +159,7 @@ class ChatRoomCursorInputSchema(Schema):
                 type=room.type,
                 hot_Flag=room.hot_flag,
                 lastMsgId=room.last_msg_id,
-                activeTime=int(datetime.timestamp(room.active_time)) if room.active_time else None
+                activeTime=datetime_to_timestamp(room.active_time) if room.active_time else None
             )
             if room.is_room_group():
                 room_base_info.name = room.roomgroup.name

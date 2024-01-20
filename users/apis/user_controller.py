@@ -30,7 +30,7 @@ class IsGroupChatSuperAdministrator(BasePermission):
     message = "群聊管理员没有该权限"
 
     def has_permission(
-            self, request: HttpRequest, controller: "ControllerBase"
+        self, request: HttpRequest, controller: "ControllerBase"
     ) -> bool:
         user = request.user or request.auth  # type: ignore
         return bool(user and user.groups.filter(name__in=['超级管理员']).exists())
@@ -44,15 +44,15 @@ class UserPublicController:
     def get_summery_user_info(self, info_input: SummeryInfoReq):
         return info_input.get_summery_user_info()
 
-    @http_post("/badges/batch", description="徽章聚合信息-返回的代表需要刷新的",response=List)
-    def get_item_info(self,info_input:ItemInfoReq):
+    @http_post("/badges/batch", description="徽章聚合信息-返回的代表需要刷新的", response=List)
+    def get_item_info(self, info_input: ItemInfoReq):
         return info_input.get_item_info()
 
 
 @api_controller("/user", tags=["User 类"], auth=AfanJWTAuth(), permissions=[IsAuthenticated])
 class UserController:
 
-    @http_get("userInfo", response=UserInfoSchema, description="获取用户信息")
+    @http_get("/userInfo", response=UserInfoSchema, description="获取用户信息")
     def get_user_info(self, request):
         user = request.user
 

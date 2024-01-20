@@ -8,6 +8,7 @@ from ninja_schema import Schema
 from pydantic import Field, model_validator as pydantic_model_validator
 
 from chat.models import MessageMark as MarkModel
+from users.user_tools.tools import datetime_to_timestamp
 
 
 class UserInfo(Schema):
@@ -47,7 +48,7 @@ class ChatMessageRespSchema(Schema):
                    message=MessageInfo(
                        id=message.id,
                        roomId=message.room_id,
-                       sendTime=int(datetime.timestamp(message.create_time)),
+                       sendTime=datetime_to_timestamp(message.create_time),
                        type=message.type,
                        body=body,
                        messageMark=messageMark

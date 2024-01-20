@@ -137,8 +137,9 @@ class SummeryInfoReq(Schema):
             user = user_dict.get(req.uid)
             if not user:
                 continue
-            if not req.lastModifyTime or user.update_time > req.lastModifyTime:
-                user.localPlace = user.ip_info.get('updateIpDetail', {}).get('city') if user.ip_info else None
+            print(req.lastModifyTime)
+            if not req.lastModifyTime or user.update_time < req.lastModifyTime:
+                user.locPlace = user.ip_info.get('updateIpDetail', {}).get('city') if user.ip_info else None
                 user.needRefresh = True
                 resp = SummeryInfoResp.from_orm(user).dict(exclude_none=True)
             else:
@@ -151,7 +152,7 @@ class SummeryInfoResp(Schema):
     uid: int = Field(alias="id")
     name: Optional[str] = Field(None, description="昵称")
     avatar: Optional[str] = Field(None, description="头像")
-    localPlace: Optional[str] = Field(None, description="地区")
+    locPlace: Optional[str] = Field(None, description="地区")
     wearingItemId: Optional[int] = Field(None, alias="item_id", description="佩戴的徽章id")
     needRefresh: bool = Field(True, description="是否需要刷新")
 

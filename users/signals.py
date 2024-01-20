@@ -136,7 +136,7 @@ def online_offline_push(user, activeStatus):
         changeList=[
             dict(uid=user.id,
                  activeStatus=activeStatus,
-                 lastOptTime=timezone.now().timestamp()
+                 lastOptTime=int(timezone.now().timestamp()*1000)
                  )
         ])
     message = {

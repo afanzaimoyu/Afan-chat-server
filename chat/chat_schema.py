@@ -24,8 +24,8 @@ from users.exceptions.chat import Business_Error
 
 class MessageBase(Schema):
     @transaction.atomic
-    def save_msg(self, uid):
-        insert = Message.objects.create(from_user_id=uid, room_id=self.roomId, status=Message.Status.NORMAL)
+    def save_msg(self, uid,type):
+        insert = Message.objects.create(from_user_id=uid, room_id=self.roomId, status=Message.Status.NORMAL,type=type)
         return insert
 
 
@@ -89,7 +89,7 @@ class MsgRecall(Schema):
     撤回的时间点
     """
     recallUid: int
-    recallTime: str
+    recallTime: int
 
 
 class BaseFileSchema(Schema):
@@ -99,7 +99,7 @@ class BaseFileSchema(Schema):
     - **url** 下载地址
     """
     size: int
-    url: Url
+    url: str
 
 
 class FileMsgSchema(BaseFileSchema):
@@ -143,7 +143,7 @@ class EmojisMsgSchema(Schema):
     Args:
     - **url** 下载地址
     """
-    url: Url
+    url: str
 
 
 class MessageExtra(MessageBase):
@@ -186,7 +186,7 @@ class ChatMessageBaseReq(Schema):
 
     def recall(self, recal_uid):
         self.message.type = Message.MessageTypeEnum.RECALL
-        recall_extra = MessageExtra(recall=dict(recallUid=recal_uid, recallTime=str(timezone.now()))).dict(
+        recall_extra = MessageExtra(recall=dict(recallUid=recal_uid, recallTime=timezone.now())).dict(
             exclude_none=True)
         self.message.extra.update(recall_extra)
         self.message.save(update_fields=['extra', "type"])

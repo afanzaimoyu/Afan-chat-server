@@ -11,7 +11,7 @@ from chat.utils.url_discover.url_discover import UrlDiscover
 
 
 class AbstractUrlDiscover(UrlDiscover):
-    PATTERN = re.compile(r"(https?://)?(www\.)?([\w_-]+(?:\.[\w_-]+)+)([\w@?^=%&:/~+#-]*)", re.S)
+    PATTERN = re.compile(r"((http|https)://)?(www.)?([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?", re.S)
 
     def get_url_content_map(self, content: str) -> Dict[str, UrlInfo]:
         if not content:
@@ -51,10 +51,10 @@ class AbstractUrlDiscover(UrlDiscover):
         try:
 
             headers = {"User-Agent": UserAgent().random}
-            response = requests.get(match_url, headers=headers, timeout=2)
+            response = requests.get(match_url, headers=headers, timeout=2,verify=False)
             response.raise_for_status()
             response.encoding = "utf-8"
-            return HTML(response.text)
+            return HTML(response.text) if response.text else None
         except requests.RequestException as e:
             print(f"Error fetching URL {match_url}: {e}")
             return None
@@ -82,3 +82,4 @@ class AbstractUrlDiscover(UrlDiscover):
     @abstractmethod
     def get_image(self, url: str, document: HTML) -> Optional[str]:
         raise NotImplementedError
+

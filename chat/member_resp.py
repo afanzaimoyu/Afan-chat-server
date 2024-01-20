@@ -7,6 +7,8 @@ from pydantic import Field
 from chat.chat_room_resp import PageSizeOutputBase
 from pydantic import Field, model_validator as pydantic_model_validator
 
+from users.user_tools.tools import datetime_to_timestamp
+
 
 class MemberResp(Schema):
     roomId: int = Field(..., description="房间id")
@@ -37,7 +39,7 @@ class WSMemberChange(Schema):
 class ChatMemberRespBase(Schema):
     uid: int = Field(alias="id")
     activeStatus: int = Field(alias="is_active")
-    lastOptTime: str = Field(alias="last_login")
+    lastOptTime: int = Field(alias="last_login")
     roleId: int = Field(alias="role")
 
     @pydantic_model_validator(mode="before")
@@ -45,7 +47,7 @@ class ChatMemberRespBase(Schema):
         new_data = {}
         for key, value in values.items():
             if isinstance(value, datetime):
-                new_data[key.replace('uid__', '')] = str(value.timestamp())
+                new_data[key.replace('uid__', '')] = datetime_to_timestamp(value)
             elif key == 'is_superuser':
                 new_data['role'] = value if value else 3
             else:

@@ -36,7 +36,7 @@ class AbstractMsgHandler(metaclass=AbsMetaMsgHandler):
     def check_and_save_msg(self, request, uid: int):
         body = self.check_msg(request.body, request.roomId, uid)
         # # 统一保存
-        insert = request.save_msg(uid)
+        insert = request.save_msg(uid, self.get_msg_type_enum())
         # # 子类扩展保存
         resp_body = self.save_msg(insert, body)
         return insert
