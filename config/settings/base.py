@@ -4,7 +4,6 @@ from pathlib import Path
 import environ
 from django.conf import settings
 
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
 APPS_DIR = BASE_DIR / "AfanChatServer"
@@ -165,6 +164,13 @@ NINJA_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=10),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
+# NINJA_EXTRA
+# ------------------------------------------------------------------------------
+NINJA_EXTRA = {
+    'INJECTOR_MODULES': [
+        'oss.file_service_module.FileServiceModule'
+    ]
+}
 
 # Celery
 # ------------------------------------------------------------------------------
@@ -228,4 +234,3 @@ CELERY_TASK_SEND_SENT_EVENT = True
 #     'users.tasks.send_message_all_async': {'queue': 'send_message_queue'},
 #     'users.tasks.refresh_ip_detail_async': {'queue': 'single_process_queue'},
 # }
-

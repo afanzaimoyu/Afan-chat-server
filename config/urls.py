@@ -27,7 +27,9 @@ from chat.controller.contact_controller import ContactController
 from chat.controller.room_controller import RoomController, RoomPublicController
 from contacts.friend_controller import ContactsController
 from users.apis.login_controller import WeChatLoginApi
+from users.apis.oss_controller import OssController
 from users.apis.user_controller import UserController, UserPublicController
+from users.apis.user_emoji_controller import UserEmojiController
 from users.user_tools.afan_ninja import AfanNinjaAPI
 from typing import cast
 from ninja.parser import Parser
@@ -45,6 +47,8 @@ class MyParser(Parser):
 
 api = AfanNinjaAPI(parser=MyParser())
 api.register_controllers(
+    OssController,
+    UserEmojiController,
     WeChatLoginApi,
     UserController,
     UserPublicController,

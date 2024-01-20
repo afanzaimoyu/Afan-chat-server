@@ -139,3 +139,19 @@ class Blacklist(models.Model):
         """
         return Blacklist.objects.filter(type=target_type, target=target_value).exists()
 
+
+class UserEmoji(models.Model):
+    class Status(models.IntegerChoices):
+        NORMAL = 0, '正常'
+        DELETED = 1, '删除'
+
+    id = models.BigAutoField(primary_key=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    expression_url = models.CharField(max_length=255, verbose_name='表情地址')
+    delete_status = models.IntegerField(default=0, verbose_name='使用状态', choices=Status.choices)
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    update_time = models.DateTimeField(auto_now=True, verbose_name='修改时间')
+
+    class Meta:
+        verbose_name = '用户表情包'
+        verbose_name_plural = '用户表情包'
