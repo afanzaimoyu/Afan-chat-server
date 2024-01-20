@@ -61,6 +61,7 @@ django-extensions = "^3.2.3"
 openai = "0.028"
 pytest = "^7.4.4"
 pymysql = "^1.1.0"
+minio = "^7.2.3"
 
 [build-system]
 requires = ["poetry-core"]
