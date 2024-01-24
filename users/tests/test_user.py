@@ -1,12 +1,6 @@
 import pytest
-from asgiref.testing import ApplicationCommunicator
-from channels.layers import get_channel_layer
-from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
-from django.test import Client
-from django.urls import reverse
-from users.user_tools.tools import get_token
-from users.consumers import ChatConsumer
+
 
 @pytest.fixture
 def user():

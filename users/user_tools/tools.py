@@ -6,9 +6,10 @@ from datetime import datetime
 from typing import cast, Dict
 
 from django.contrib.auth.base_user import AbstractBaseUser
-from django.contrib.auth.models import AbstractUser
 from ninja_jwt.tokens import RefreshToken
 from ninja_jwt.utils import token_error
+
+from users.apis.wx_controller import WeChatOAuth
 
 
 def generate_login_code(ip):
@@ -23,6 +24,13 @@ def generate_login_code(ip):
     hashed_info = hashlib.sha256(combined_info.encode()).hexdigest()[:32]
 
     return hashed_info
+
+
+def request_qr_code(login_code):
+    wechat_oauth = WeChatOAuth()
+    access_token = wechat_oauth.fetch_normal_access_token
+    res = wechat_oauth.create_temporary_qrcode(access_token, login_code).get('url')
+    return res
 
 
 def extract_login_code_from_event_key(event_key: str) -> str:

@@ -2,6 +2,7 @@
 .gitattributes
 .gitignore
 .idea
-.venv/
+.venv
 .git
-.envs/
+#.envs/
+log

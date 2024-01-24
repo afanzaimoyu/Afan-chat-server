@@ -62,6 +62,7 @@ openai = "0.028"
 pytest = "^7.4.4"
 pymysql = "^1.1.0"
 minio = "^7.2.3"
+loguru = "^0.7.2"
 
 [build-system]
 requires = ["poetry-core"]

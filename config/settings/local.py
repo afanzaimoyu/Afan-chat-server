@@ -1,31 +1,19 @@
+import logging
+
 from .base import *  # noqa
 from .base import env
 
-# GENERAL
-# ------------------------------------------------------------------------------
-# https://docs.djangoproject.com/en/dev/ref/settings/#debug
 DEBUG = True
-# https://docs.djangoproject.com/en/dev/ref/settings/#secret-key
-SECRET_KEY = env(
-    "DJANGO_SECRET_KEY",
-    default="shqfr08LEXFYzi3zGQIGTTZZDoD1jGQOcLN97yd4RHXz3ZsRk5VtcZeuVlYk0EIr",
-)
-# https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["*"])
+SECRET_KEY = env.str("DJANGO_SECRET_KEY", default='django-insecure-^ga@7%5lnh@)_a*v!0&g)tbrf-2r2p*t%hei$bf%drp*)wj8f_')
 
 # CHANNEL
 # ------------------------------------------------------------------------------
-
-# CHANNEL_LAYERS = {
-#     "default": {
-#         "BACKEND": "channels.layers.InMemoryChannelLayer"
-#     }
-# }
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "BACKEND": env.str("CHANNEL_LAYERS_BACKEND", default="channels_redis.core.InMemoryChannelLayer"),
         "CONFIG": {
-            "hosts": [f"{env.str('REDIS_URL')}/0"],
+            "hosts": [env.str('REDIS_URL', None)],
         },
     },
 }
@@ -34,7 +22,7 @@ CHANNEL_LAYERS = {
 # https://docs.djangoproject.com/en/dev/ref/settings/#caches
 DEFAULT_CACHE_CONFIG = {
     'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-    'LOCATION': f"{env.str('REDIS_URL')}/0",
+    'LOCATION': env.str('REDIS_URL'),
     'OPTIONS': {
         'parser_class': 'redis.connection._HiredisParser',
         'pool_class': 'redis.ConnectionPool',
@@ -42,10 +30,9 @@ DEFAULT_CACHE_CONFIG = {
 }
 
 
-def create_cache_config(key_prefix, db=0):
+def create_cache_config(key_prefix):
     config = DEFAULT_CACHE_CONFIG.copy()
     config['KEY_PREFIX'] = key_prefix
-    config['LOCATION'] = f"{env.str('REDIS_URL')}/{db}"
     return config
 
 
@@ -79,3 +66,41 @@ CACHES = {
 #         # The node container isn't started (yet?)
 #         pass
 #
+# Log
+# ------------------------------------------------------------------------------
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'standard': {'format': '[%(asctime)s] [%(filename)s:%(lineno)d] [%(module)s:%(funcName)s] [%(levelname)s]- %('
+                               'message)s'},
+        'simple': {'format': '%(levelname)s %(message)s'},
+    },
+    'handlers': {
+        'servers': {
+            'class': 'utils.log.LoguruStreamHandler',  # 这个路径看你本地放在哪里(下面的log文件)
+            'filename': Path('server.log'),
+            'formatter': 'standard',
+        },
+        'db': {
+            'class': 'utils.log.LoguruStreamHandler',
+            'filename': Path('db.log'),
+            'formatter': 'standard',
+            'logging_levels': ['debug']  # 😒注意这里，这是自定义类多了一个参数，因为我只想让db日志有debug文件，所以我只看sql，这个可以自己设置
+        }
+    },
+    'loggers': {
+        # Django全局绑定
+        '': {
+            'handlers': ['servers'],
+            'propagate': True,
+            'level': "INFO"
+        },
+        'django.db.backends': {
+            'handlers': ['db'],
+            'propagate': False,
+            'level': "DEBUG"
+        }
+    }
+}
+

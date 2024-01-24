@@ -1,3 +1,4 @@
+import logging
 import pprint
 from typing import List
 
@@ -46,6 +47,7 @@ class UserPublicController:
 
     @http_post("/badges/batch", description="徽章聚合信息-返回的代表需要刷新的", response=List)
     def get_item_info(self, info_input: ItemInfoReq):
+        logging.info('get_item_info')
         return info_input.get_item_info()
 
 

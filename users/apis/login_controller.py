@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 from typing import cast, Type, Optional, Any, Dict
 import xmltodict
 
@@ -27,15 +28,19 @@ from ninja_jwt.utils import token_error
 
 from pydantic import model_validator
 
-from config.settings.base import env
+from django.conf import settings
 from contacts.models import UserFriend
 
 from users.apis.wx_controller import WeChatOAuth
 from users.models import CustomUser, Blacklist
+from users.service.login import LoginService
 from users.tasks import refresh_ip_detail_async, send_message_all_async
 from users.user_schema.ipinfo_schema import Ipinfo
 from users.user_tools.afan_ninja import AfanNinjaAPI
 from users.user_tools.tools import extract_login_code_from_event_key, get_token
+
+env = settings.ENV
+logger = logging.getLogger(__name__)
 
 
 class TokenRefreshInputSchema(Schema):
@@ -75,12 +80,11 @@ class WxData(Schema):
 
 @api_controller('/wx', tags=["Wechat Login"], permissions=[])
 class WeChatLoginApi:
-    wx_auth = WeChatOAuth()
 
     @http_get('/login')
     @csrf_exempt
     def wechat_auth(self, signature, timestamp, nonce, echostr):
-        wx_token = env.str("Token")
+        wx_token = env.str("TOKEN")
 
         tmp_arr = [wx_token, timestamp, nonce]
         tmp_arr.sort()
@@ -103,64 +107,62 @@ class WeChatLoginApi:
         Returns:
 
         """
-        print('3', data)
         dic = data.dict().get('xml')
-        print(dic)
         event_key = str(dic.get("EventKey"))
-        print('ek---', event_key)
-
         if dic.get("MsgType") == "event":
+            logger.info("微信事件推送形式")
 
             if dic.get("Event") == "subscribe":
-                # 用户未关注
+                logger.info("用户初次关注公众号")
+
                 login_code = extract_login_code_from_event_key(event_key)
                 cache.set(openid, login_code, env.int("expire_seconds"))
 
-                authorize_url = self.wx_auth.authorize_url
-                print(authorize_url)
-                access_token = cache.get("wx_access_token")
-                res = self.wx_auth.fetch_template_text(openid, access_token, authorize_url)
-
-                # 推送消息给用户（通过连接进行推送）
-                channel_name = cache.get(login_code)
-                communicates_with_websockets(channel_name, "loading_auth")
-                print("发送成功", res)
+                LoginService.send_an_authorization_link(login_code, openid)
 
             elif dic.get("Event") == "SCAN":
-                # 用户已关注
-                user = get_object_or_404(CustomUser, open_id=openid)
-
-                channel_name = cache.get(event_key)
-                communicates_with_websockets(channel_name, "login_success", user.id)
+                logger.info("用户已关注公众号")
+                if CustomUser.objects.filter(open_id=openid).exists():
+                    user = CustomUser.objects.get(open_id=openid)
+                    LoginService.push_login_success_message(event_key, user.id)
+                else:
+                    logger.info("用户已关注公众号，但是没有授权")
+                    LoginService.send_an_authorization_link(event_key, openid)
 
             elif dic.get("Event") == "unsubscribe":
-
-                user = get_object_or_404(CustomUser, open_id=openid)
-                user.backpacks.clear()
-                user.delete()
-                print("取消关注")
+                logger.info("用户取消关注公众号")
+                try:
+                    user = CustomUser.objects.get(open_id=openid)
+                    user.backpacks.clear()
+                    user.delete()
+                except CustomUser.DoesNotExist:
+                    logger.warning("用户不存在")
+        else:
+            logger.warning(f'微信推送未知的消息类型 {dic.get("MsgType") == "event"}')
 
     @http_get("/auth")
     def my_auth(self, code: str):
-        # 授权
-        data = self.wx_auth.fetch_access_token(code)
+        logger.info("用户点击链接授权")
+
+        data = LoginService.wx_auth.fetch_access_token(code)
         open_id = data.get("openid")
         access_token = data.get("access_token")
 
         # 保存用户信息
-        user_info = self.wx_auth.get_user_info(open_id, access_token)
+        user_info = LoginService.wx_auth.get_user_info(open_id, access_token)
         nickname = user_info.get("nickname")
         avatar = user_info.get("headimgurl")
         user = CustomUser.objects.create_user(open_id, name=nickname, avatar=avatar)
-        print('用户信息保存成功')
+        logger.info(f'{nickname} 用户信息保存成功')
 
         # 获取当前连接
         login_code = cache.get(open_id)
         channel_name = cache.get(login_code)
         if not login_code and not channel_name:
+            logger.warning("用户授权失败")
             raise ValidationError(detail="授权失败，请重新扫码")
 
-        communicates_with_websockets(channel_name, "login_success", user.id)
+        LoginService.push_login_success_message(channel_name, user)
 
     @http_post(
         "/refresh",
@@ -170,38 +172,3 @@ class WeChatLoginApi:
     def refresh(self, refresh_token: TokenRefreshInputSchema):
         return refresh_token.dict()
 
-    @http_get("test")
-    def test(self):
-        current_user = CustomUser.objects.get(id=6)
-        return get_token(current_user)
-        # friendships = list(UserFriend.objects.filter(uid=current_user.id)[:2])
-        # # print(str(friendships.query))
-        #
-        # # 通过 friendships 获取所有好友的 uid
-        # friend_uids = [frend.friend_uid for frend in friendships]
-        # print(friend_uids)
-        #
-        # # 使用好友的 uid 查询好友的详细信息
-        # friends = CustomUser.objects.filter(id__in=friend_uids)
-        # for friend in friends:
-        #     print(friend.name)
-
-
-def communicates_with_websockets(channel_name, event_type, user=None):
-    channel_layer = get_channel_layer()
-    message = None
-    if event_type == "loading_auth":
-        message = {
-            "type": "loading.auth",
-        }
-    elif event_type == "login_success":
-        message = {
-            "type": "login.success",
-            "user": user
-        }
-    try:
-        async_to_sync(channel_layer.send)(channel_name, message)
-    except Exception as e:
-        print(f"Error sending message: {e}")
-
-    # 用户成功上线事件

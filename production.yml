@@ -24,8 +24,8 @@ services:
 
   redis:
     image: redis:latest
-    # command: redis-server /etc/redis/redis.conf # 容器启动后启动redis服务器
-    command: redis-server
+    command: redis-server /etc/redis/redis.conf # 容器启动后启动redis服务器
+#    command: redis-server
     container_name: project_redis
     volumes:
       - ./compose/production/redis/redis.conf:/etc/redis/redis.conf # 挂载redis配置文件
@@ -42,7 +42,7 @@ services:
       - project_db_vol:/var/lib/mysql:rw
       - ./compose/production/mysql/conf/my.cnf:/etc/mysql/my.cnf # 挂载配置文件
     env_file: # 指定了环境变量配置文件的路径。
-      - ./.envs/.mysql
+      - ./.envs/.production/.mysql
     ports: # 指定了端口映射关系。
       - '3306:3306'
     restart: always # 指定了容器的重启策略。
@@ -58,7 +58,7 @@ services:
       - "9000:9000" # api 端口
       - "9001:9001" # 控制台端口
     env_file:
-      - ./.envs/.minIO
+      - ./.envs/.production/.minIO
     command: server --address ':9000' --console-address ':9001' /data  # 指定容器中的目录 /data
     privileged: true
 
@@ -70,8 +70,6 @@ services:
     depends_on:
       - db
       - redis
-    env_file:
-      - ./.envs/.production
     command: /start
 
   celeryworker:

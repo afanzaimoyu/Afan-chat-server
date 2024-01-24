@@ -1,14 +1,20 @@
 # -*- coding: utf-8 -*-
 import json
+import logging
 from json import JSONDecodeError
 from urllib.parse import quote
 from typing import Optional, Dict, Any, Union
 
-from config.settings.base import env
+from django.conf import settings
 from django.core.cache import cache
 import requests
 
+from chat.utils.sensitive_word.sensitive_word_filter import Singleton
 
+logger = logging.getLogger(__name__)
+
+
+@Singleton
 class WeChatOAuth:
     """
     微信公众号  OAuth 网页授权
@@ -36,12 +42,13 @@ class WeChatOAuth:
             state (str, optional): 微信公众号 OAuth2 state
             expire_seconds (Optional[int]): 二维码有效时间，以秒为单位。最大不超过2592000（即30天），默认为60秒。
         """
+        env = settings.ENV
         self.app_id = env.str("APP_ID", app_id)
-        self.secret = env.str("secret", secret)
-        self.redirect_uri = env.str("redirect_uri", redirect_uri)
-        self.scope = env.str("scope", scope)
-        self.state = env.str("state", state)
-        self.expire_seconds = env.int("expire_seconds", expire_seconds)
+        self.secret = env.str("SECRET", secret)
+        self.redirect_uri = env.str("REDIRECT_URI", redirect_uri)
+        self.scope = env.str("SCOPE", scope)
+        self.state = env.str("STATE", state)
+        self.expire_seconds = env.int("EXPIRE_SECONDS", expire_seconds)
         self._http = requests.Session()
 
     def _request(self, method: str, url_or_endpoint: str, **kwargs: Any) -> Union[Dict[str, Any], bytes]:
@@ -84,15 +91,12 @@ class WeChatOAuth:
             }
 
         content_type = res.headers.get('Content-Type', '')
-        print(content_type)
 
         match content_type:
             case x if 'application/json' or 'text' in x:
                 result = json.loads(res.content.decode('utf-8', "ignore"), strict=False)
             case _:
                 return res.content
-        print(result)
-
 
         if "errcode" in result and result["errcode"] != 0:
             errcode = result["errcode"]
@@ -124,6 +128,7 @@ class WeChatOAuth:
         Returns:
             str: 授权跳转地址
         """
+        logger.info("获取微信公众号 OAuth 授权跳转地址")
         redirect_uri = quote(self.redirect_uri, safe=b'')
         url_parts = [
             self.OAUTH_BASE_URL,
@@ -149,18 +154,22 @@ class WeChatOAuth:
             access_token
 
         """
-        res = self._get(
-            "cgi-bin/token",
-            params={
-                "grant_type": "client_credential",
-                "appid": self.app_id,
-                "secret": self.secret,
-            },
-        )
-        access_token = res.get('access_token')
-        expires_in = int(res.get("expires_in"))
+        logger.info("获取access_token")
+        if cache.get("wx_access_token"):
+            access_token = cache.get("wx_access_token")
+        else:
+            res = self._get(
+                "cgi-bin/token",
+                params={
+                    "grant_type": "client_credential",
+                    "appid": self.app_id,
+                    "secret": self.secret,
+                },
+            )
+            access_token = res.get('access_token')
+            expires_in = int(res.get("expires_in"))
 
-        cache.set("wx_access_token", access_token, expires_in)
+            cache.set("wx_access_token", access_token, expires_in)
         return access_token
 
     def fetch_access_token(self, code: str) -> dict:
@@ -304,12 +313,12 @@ class WeChatOAuth:
 
         return res
 
-    def fetch_template_text(self, open_id:str,access_token: str,auth_url:str):
-
+    def fetch_template_text(self, open_id: str, access_token: str, auth_url: str):
+        logger.info("发送模板消息")
         data = {
             "touser": open_id,
             "template_id": "IT2JavpghUvB59pMBnHzxiv8QkaqsL1fsXZ5Q_vmNps",
-            "url":auth_url,
+            "url": auth_url,
         }
         res = self._post(
             "cgi-bin/message/template/send",

@@ -15,9 +15,10 @@ READ_DOT_ENV_FILE = env.bool("DJANGO_READ_DOT_ENV_FILE", default=True)
 if READ_DOT_ENV_FILE:
     # OS environment variables take precedence over variables from .env
     if 'local' in settings.SETTINGS_MODULE:
-        env.read_env(str(BASE_DIR / ".envs" / '.local'))
+        env.read_env(str(BASE_DIR / ".envs" / '.local' / '.django.env'))
     else:
-        env.read_env(str(BASE_DIR / ".envs" / '.production'))
+        env.read_env(str(BASE_DIR / ".envs" / '.production' / '.django.env'))
+ENV = env
 # 常规配置
 # ------------------------------------------------------------------------------
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -82,8 +83,7 @@ LOCAL_APPS = [
     'users',
     "contacts",
     "chat",
-    "chatai"
-
+    "chatai",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -130,9 +130,6 @@ MIDDLEWARE = [
 # SECURITY WARNING: keep the secret key used in production secret!
 # ------------------------------------------------------------------------------
 
-SECRET_KEY = env.str("DJANGO_SECRET_KEY", default='django-insecure-^ga@7%5lnh@)_a*v!0&g)tbrf-2r2p*t%hei$bf%drp*)wj8f_')
-
-ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["*"])
 
 # TEMPLATES
 # ------------------------------------------------------------------------------
@@ -161,8 +158,8 @@ STATIC_URL = 'static/'
 # NINJA_JWT
 # ------------------------------------------------------------------------------
 NINJA_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=10),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=7),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
 }
 # NINJA_EXTRA
 # ------------------------------------------------------------------------------
@@ -183,7 +180,7 @@ if USE_TZ:
 # 最重要的配置，设置消息broker,格式为：db://user:password@host:port/dbname
 # 如果redis安装在本机，使用localhost
 # 如果docker部署的redis，使用redis://redis:6379
-CELERY_BROKER_URL = env.str("CELERY_BROKER_URL", default="redis://localhost:6379/0")
+CELERY_BROKER_URL = env.str("REDIS_URL", default="redis://localhost:6379/0")
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#std:setting-result_backend
 # 为django_celery_results存储Celery任务执行结果设置后台
 # 格式为：db+scheme://user:password@host:port/dbname
@@ -234,3 +231,10 @@ CELERY_TASK_SEND_SENT_EVENT = True
 #     'users.tasks.send_message_all_async': {'queue': 'send_message_queue'},
 #     'users.tasks.refresh_ip_detail_async': {'queue': 'single_process_queue'},
 # }
+
+# Logging
+# ------------------------------------------------------------------------------
+LOG_ROOT = Path(BASE_DIR) / 'log'
+
+# 检查文件夹是否存在，如果不存在则创建
+LOG_ROOT.mkdir(parents=True, exist_ok=True)

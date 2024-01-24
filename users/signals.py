@@ -1,4 +1,7 @@
+import logging
+
 from asgiref.sync import async_to_sync, sync_to_async
+from channels.db import database_sync_to_async
 from channels.layers import get_channel_layer
 from django.contrib.auth.models import update_last_login
 from django.core.cache import cache
@@ -7,11 +10,13 @@ from django.db.transaction import on_commit
 from django.dispatch import receiver, Signal
 from django.utils import timezone
 
+from .domain.enums.chat_active_enum import ChatActiveEnum
 from .models import *
-from .user_schema.ipinfo_schema import Ipinfo
+from .service.adapter.ws_adapter import WSAdapter
 from .user_tools.cache_lock import distribute_item
-from users.tasks import refresh_ip_detail_async, send_message_all_async
+from users.tasks import refresh_ip_detail_async, send_message_all_async, send_to_all_oline
 
+logger = logging.getLogger(__name__)
 user_online_signal = Signal()
 user_offline_signal = Signal()
 
@@ -105,45 +110,30 @@ def user_online(sender, **kwargs):
     user: CustomUser = kwargs.get('user')
     ip = kwargs.get('ip')
 
+    logger.info(f"{user.name} 用户上线,  状态: {ChatActiveEnum.ONLINE.label}")
+
     user.last_login = timezone.now()
-    user.is_active = 1
+    user.is_active = ChatActiveEnum.ONLINE
     user.refresh_ip(ip)
     user.save()
-    print("更新成功")
+    logger.info(f"{user.name} 用户数据更新成功")
 
     # 解析ip
     on_commit(lambda: refresh_ip_detail_async.delay(user.id))
-    print("解析成功")
-    online_offline_push(user, 2)
+
+    on_commit(lambda: send_to_all_oline.delay(WSAdapter.build_oline_offline_notify_resp(user)))
 
 
 @receiver(user_offline_signal, dispatch_uid="user_offline_signal")
 def save_db_and_push(sender, **kwargs):
-    # 更新 时间，在线状态，ip信息
+    # 更新 在线状态 推送消息
     uid = kwargs.get('uid')
-    if uid:
-        user = CustomUser.objects.get(id=uid)
+    user = CustomUser.objects.get(id=uid)
 
-        user.last_login = timezone.now()
-        user.is_active = 2
-        user.save()
-        online_offline_push(user, 2)
+    logger.info(f"{user.name} 用户下线,  状态: {ChatActiveEnum.OFFLINE.label}")
 
+    user.is_active = ChatActiveEnum.OFFLINE
+    user.save()
+    ws_resp = WSAdapter.build_oline_offline_notify_resp(user)
 
-def online_offline_push(user, activeStatus):
-    body = dict(
-        onlineNum=CustomUser.objects.filter(is_active=1).count(),
-        changeList=[
-            dict(uid=user.id,
-                 activeStatus=activeStatus,
-                 lastOptTime=int(timezone.now().timestamp()*1000)
-                 )
-        ])
-    message = {
-        "type": "send.message.all",
-        "message": {
-            "type": 5,
-            "data": body,
-        }
-    }
-    send_message_all_async.delay(message)
+    on_commit(lambda: send_to_all_oline.delay(ws_resp))
