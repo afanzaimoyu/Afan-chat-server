@@ -74,7 +74,7 @@ class MinioBucketFileService(OssBucketFileService):
         absolute_url = self.generate_auto_path(req) if req.authPath else req.filePath + '/' + req.fileName
         url = self.minio_client.presigned_put_object(
             bucket_name=self.bucket_name,
-            object_name=absolute_url,
+            object_name=absolute_url.lstrip('/'),
             expires=timedelta(days=1),
         )
         return OssResp(
