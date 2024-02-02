@@ -116,7 +116,7 @@ class WeChatLoginApi:
                 logger.info("用户初次关注公众号")
 
                 login_code = extract_login_code_from_event_key(event_key)
-                cache.set(openid, login_code, env.int("expire_seconds"))
+                cache.set(openid, login_code, env.int("EXPIRE_SECONDS"))
 
                 LoginService.send_an_authorization_link(login_code, openid)
 

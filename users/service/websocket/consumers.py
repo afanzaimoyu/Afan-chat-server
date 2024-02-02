@@ -70,7 +70,7 @@ class ChatConsumer(JsonWebsocketConsumer):
         logger.info('请求登录二维码')
         # 生成唯一的登录码并与通道关联
         login_code = generate_login_code(self.scope['ip'])
-        expire_seconds = settings.ENV.int("expire_seconds")
+        expire_seconds = settings.ENV.int("EXPIRE_SECONDS")
         cache.set(login_code, self.channel_name, expire_seconds)
 
         # 请求微信 API 获取二维码

@@ -72,7 +72,7 @@ THIRD_PARTY_APPS = [
     "channels",
     'ninja_extra',
     # 'django_rest_passwordreset',
-    # 'corsheaders'
+    'corsheaders',
     'ninja_jwt',
     "django_celery_beat",
     "django_celery_results",
@@ -120,6 +120,7 @@ AUTH_PASSWORD_VALIDATORS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',

@@ -6,7 +6,12 @@ from .base import env
 DEBUG = True
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["*"])
 SECRET_KEY = env.str("DJANGO_SECRET_KEY", default='django-insecure-^ga@7%5lnh@)_a*v!0&g)tbrf-2r2p*t%hei$bf%drp*)wj8f_')
-
+# CORS
+CORS_ALLOW_CREDENTIALS = True
+# CORS_ALLOWED_ORIGINS = [
+#     '*',
+#     # Add more origins if needed
+# ]
 # CHANNEL
 # ------------------------------------------------------------------------------
 CHANNEL_LAYERS = {

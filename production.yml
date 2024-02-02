@@ -67,6 +67,9 @@ services:
       context: .
       dockerfile: ./compose/production/django/Dockerfile
     image: afan_chat_server_django
+    volumes:
+      - ./log:/app/log
+      - ./.envs:/app/.envs
     depends_on:
       - db
       - redis

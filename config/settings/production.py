@@ -5,8 +5,52 @@ from config.settings.base import *
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS")
 SECRET_KEY = env.str("DJANGO_SECRET_KEY")
 
-SECURE_SSL_REDIRECT = True
+# SECURE_SSL_REDIRECT = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
+# CORS
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_HEADERS = ('*')
+# CORS_ALLOWED_ORIGINS = [
+#     'https://www.afanchat.cn',
+#     'https://afanchat.cn',
+#     'https://minio.afanchat.cn',
+#     'https://api.afanchat.cn',
+#     # Add more origins if needed
+# ]
+# CHANNEL
+# ------------------------------------------------------------------------------
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": env.str("CHANNEL_LAYERS_BACKEND", default="channels_redis.core.InMemoryChannelLayer"),
+        "CONFIG": {
+            "hosts": [env.str('REDIS_URL', None)],
+        },
+    },
+}
+# CACHES
+# ------------------------------------------------------------------------------
+# https://docs.djangoproject.com/en/dev/ref/settings/#caches
+DEFAULT_CACHE_CONFIG = {
+    'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+    'LOCATION': env.str('REDIS_URL'),
+    'OPTIONS': {
+        'parser_class': 'redis.connection._HiredisParser',
+        'pool_class': 'redis.ConnectionPool',
+    }
+}
+
+
+def create_cache_config(key_prefix):
+    config = DEFAULT_CACHE_CONFIG.copy()
+    config['KEY_PREFIX'] = key_prefix
+    return config
+
+
+CACHES = {
+    'default': create_cache_config(key_prefix='default:'),
+    'item_cache': create_cache_config(key_prefix='item:'),
+}
 
 # Log
 # ------------------------------------------------------------------------------

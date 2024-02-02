@@ -42,20 +42,18 @@ class LoginService:
             logger.error(f"发送消息时出错: {e}")
 
     @classmethod
-    def push_message_once(cls, login_code, data):
+    def push_message_once(cls, channel_name, data):
         message = {
             "type": "out_send_msg",
             "message": data
         }
-        channel_name = cache.get(login_code)
         return cls.push_message(channel_name, message)
 
     @classmethod
-    def push_login_success_message(cls, login_code, data):
+    def push_login_success_message(cls, channel_name, data):
         print(1)
         message = {
             "type": "out_login_success",
             "message": data
         }
-        channel_name = cache.get(login_code)
         return cls.push_message(channel_name, message)
