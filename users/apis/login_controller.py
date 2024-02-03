@@ -124,7 +124,8 @@ class WeChatLoginApi:
                 logger.info("用户已关注公众号")
                 if CustomUser.objects.filter(open_id=openid).exists():
                     user = CustomUser.objects.get(open_id=openid)
-                    LoginService.push_login_success_message(event_key, user.id)
+                    channel_name = cache.get(event_key)
+                    LoginService.push_login_success_message(channel_name, user.id)
                 else:
                     logger.info("用户已关注公众号，但是没有授权")
                     LoginService.send_an_authorization_link(event_key, openid)
@@ -162,7 +163,7 @@ class WeChatLoginApi:
             logger.warning("用户授权失败")
             raise ValidationError(detail="授权失败，请重新扫码")
 
-        LoginService.push_login_success_message(channel_name, user)
+        LoginService.push_login_success_message(channel_name, user.id)
 
     @http_post(
         "/refresh",
