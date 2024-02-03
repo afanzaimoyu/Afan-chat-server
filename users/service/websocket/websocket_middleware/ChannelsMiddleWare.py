@@ -42,10 +42,10 @@ class WSMiddleWare(BaseMiddleware):
             ip
         """
         headers = dict(scope.get('headers', []))
-        real_ip = headers.get(b'x-real-ip', b'').decode('utf-8')
-        if not real_ip:
-            x_forwarded_for = headers.get(b'x-forwarded-for', b'').decode('utf-8')
-            real_ip = x_forwarded_for.split(',')[0].strip()
+        # real_ip = headers.get(b'x-real-ip', b'').decode('utf-8')
+        # if not real_ip:
+        x_forwarded_for = headers.get(b'x-forwarded-for', b'').decode('utf-8')
+        real_ip = x_forwarded_for.split(',')[0].strip()
         return real_ip
 
 
