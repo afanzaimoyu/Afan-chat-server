@@ -9,8 +9,8 @@ class IpDetail(Schema):
     isp: str = None
     city: str = None
     city_id: Optional[str] = None
-    county: str = None
-    county_id: Optional[str] = None
+    country: str = None
+    country_id: Optional[str] = None
     region: str = None
     region_id: Optional[str] = None
 
