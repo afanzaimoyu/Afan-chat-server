@@ -34,6 +34,7 @@ CHANNEL_LAYERS = {
 DEFAULT_CACHE_CONFIG = {
     'BACKEND': 'django.core.cache.backends.redis.RedisCache',
     'LOCATION': env.str('REDIS_URL'),
+    "TIMEOUT": None,
     'OPTIONS': {
         'parser_class': 'redis.connection._HiredisParser',
         'pool_class': 'redis.ConnectionPool',
