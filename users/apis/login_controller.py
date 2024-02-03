@@ -10,6 +10,7 @@ from channels.layers import get_channel_layer
 
 from django.contrib.auth.models import update_last_login
 from django.core.cache import cache
+from django.db.transaction import on_commit
 from django.http import HttpResponse, HttpRequest
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
@@ -125,7 +126,7 @@ class WeChatLoginApi:
                 if CustomUser.objects.filter(open_id=openid).exists():
                     user = CustomUser.objects.get(open_id=openid)
                     channel_name = cache.get(event_key)
-                    LoginService.push_login_success_message(channel_name, user.id)
+                    on_commit(lambda: LoginService.push_login_success_message(channel_name, user.id))
                 else:
                     logger.info("用户已关注公众号，但是没有授权")
                     LoginService.send_an_authorization_link(event_key, openid)
@@ -163,7 +164,7 @@ class WeChatLoginApi:
             logger.warning("用户授权失败")
             raise ValidationError(detail="授权失败，请重新扫码")
 
-        LoginService.push_login_success_message(channel_name, user.id)
+        on_commit(lambda: LoginService.push_login_success_message(channel_name, user.id))
 
     @http_post(
         "/refresh",
