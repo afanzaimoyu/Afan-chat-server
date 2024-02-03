@@ -3,6 +3,7 @@ from datetime import timedelta
 from pathlib import Path
 import environ
 from django.conf import settings
+from kombu import Queue, Exchange
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
@@ -222,17 +223,15 @@ CELERY_SEND_TASK_EVENTS = True
 # 设置任务发送事件，表示启用任务发送 "sent" 事件，以便能够在任务发送时接收通知。
 CELERY_TASK_SEND_SENT_EVENT = True
 
+# CELERY_TASK_QUEUES = (
+#     Queue('default', Exchange('default'), routing_key='default'),
+#     Queue('refresh_ip_queue', Exchange('refresh_ip_queue'), routing_key='refresh_ip_queue'),
+# )
+#
 # CELERY_TASK_DEFAULT_QUEUE = 'default'
-# CELERY_QUEUES = [
-#     {"name": "default", "exchange": "default", "routing_key": "default"},
-#     {"name": "send_message_queue", "exchange": "send_message_queue", "routing_key": "send_message_queue"},
-#     {"name": "single_process_queue", "exchange": "single_process_queue", "routing_key": "single_process_queue"},
-# ]
-# CELERY_TASK_ROUTES = {
-#     'users.tasks.send_message_all_async': {'queue': 'send_message_queue'},
-#     'users.tasks.refresh_ip_detail_async': {'queue': 'single_process_queue'},
-# }
-
+# CELERY_TASK_DEFAULT_EXCHANGE = 'default'
+# CELERY_TASK_DEFAULT_ROUTING_KEY = 'default'
+# CELERY_TASK_CREATE_MISSING_QUEUES = True
 # Logging
 # ------------------------------------------------------------------------------
 LOG_ROOT = Path(BASE_DIR) / 'log'

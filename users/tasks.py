@@ -20,7 +20,7 @@ Celery -A config.celery_app worker -l info -P eventlet
 logger = logging.getLogger(__name__)
 
 
-def retry_on_failure(self, countdown=2, exc=None):
+def retry_on_failure(self, countdown=10, exc=None):
     try:
         logger.info(f"重试任务 {self.request.id} 在 {countdown} 秒后")
         raise self.retry(exc=exc, countdown=countdown)
@@ -28,6 +28,7 @@ def retry_on_failure(self, countdown=2, exc=None):
         logger.warning(f"{self.request.id} 超出了任务的最大重试次数")
 
 
+# @shared_task(bind=True, max_retries=5, rate_limit='5/s', ignore_result=True, queue='refresh_ip_queue')
 @shared_task(bind=True, max_retries=5, rate_limit='5/s', ignore_result=True)
 def refresh_ip_detail_async(self, uid):
     logger.info("celery 准备更新用户ip信息")
@@ -59,7 +60,7 @@ def refresh_ip_detail_async(self, uid):
             retry_on_failure(self)
     except requests.exceptions.RequestException as exc:
         # 如果请求失败，等待2秒后重试
-        retry_on_failure(self, countdown=2, exc=exc)
+        retry_on_failure(self, countdown=10, exc=exc)
     # 数据保存失败，等待2秒后重试
 
 
